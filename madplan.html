@@ -203,6 +203,15 @@
 
   <section id="tab-kartotek" class="panel">
     <div class="section-title">Råvarekartotek</div>
+
+    <div class="card">
+      <h3 style="font-size:14px; margin-bottom:6px;">Din egen proxy til "Hent"-knappen</h3>
+      <p class="hint" style="margin-top:0;">Gemmes kun lokalt i din browser — står aldrig i den offentlige kode på GitHub. Sæt adressen på din Cloudflare Worker her, så bruges den først frem for de delte, upålidelige proxyer.</p>
+      <input type="url" id="workerUrlInput" placeholder="https://madplan-proxy.dit-navn.workers.dev">
+      <button class="btn primary small" style="margin-top:8px;" onclick="saveWorkerUrl()">Gem</button>
+      <span class="hint" id="workerUrlStatus"></span>
+    </div>
+
     <p class="hint">Kartoteket er bygget på Frida-data (DTU Fødevareinstituttet, v6.1) — reelle værdier, ikke tilnærmelser. Data for fødevarers næringsindhold er stillet til rådighed af DTU Fødevareinstituttet (frida.fooddata.dk). Du kan stadig rette eller tilføje egne råvarer, eller scanne en stregkode for produkter fra Open Food Facts.</p>
     <button class="btn primary block" style="margin:12px 0;" onclick="openScan()">📷 Scan stregkode</button>
     <input type="text" id="kartotekSearch" placeholder="Søg råvare…" style="margin-bottom:12px;">
@@ -342,10 +351,11 @@ function loadState(){
       if(!parsed.days) parsed.days = {};
       if(!parsed.shoppingChecked) parsed.shoppingChecked = {};
       if(!parsed.recipeLibrary) parsed.recipeLibrary = {};
+      if(!parsed.settings) parsed.settings = { workerUrl: '' };
       return parsed;
     }
   }catch(e){ console.warn('Kunne ikke læse gemt data.', e); }
-  return { kartotek: defaultKartotek(), days: {}, shoppingChecked: {}, recipeLibrary: {} };
+  return { kartotek: defaultKartotek(), days: {}, shoppingChecked: {}, recipeLibrary: {}, settings: { workerUrl: '' } };
 }
 function saveState(){
   try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
@@ -599,10 +609,22 @@ function renderMeals(){
 /* ============================================================
    HENT OPSKRIFT FRA LINK (CORS-proxy + schema.org Recipe)
 ============================================================ */
-const RECIPE_PROXIES = [
-  u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
-  u => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(u)}`
-];
+function getRecipeProxies(){
+  const proxies = [];
+  if(state.settings.workerUrl){
+    const base = state.settings.workerUrl.trim().replace(/\/$/,'');
+    proxies.push(u => `${base}/?url=${encodeURIComponent(u)}`);
+  }
+  proxies.push(u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`);
+  proxies.push(u => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(u)}`);
+  return proxies;
+}
+
+function saveWorkerUrl(){
+  state.settings.workerUrl = document.getElementById('workerUrlInput').value.trim();
+  saveState();
+  document.getElementById('workerUrlStatus').textContent = state.settings.workerUrl ? ' Gemt — bruges nu først.' : ' Fjernet — bruger kun de delte proxyer.';
+}
 
 function extractRecipeFromHtml(html){
   const scriptRe = /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
@@ -644,7 +666,7 @@ async function fetchRecipeFromLink(slot){
   statusEl.textContent = 'Henter opskrift…';
 
   let html = null;
-  for(const proxyFn of RECIPE_PROXIES){
+  for(const proxyFn of getRecipeProxies()){
     try{
       const res = await fetch(proxyFn(url));
       if(res.ok){ html = await res.text(); break; }
@@ -1165,6 +1187,8 @@ function renderAll(){
   renderLibrary(document.getElementById('libSearch').value);
   renderShoppingList();
   renderKartotek(document.getElementById('kartotekSearch').value);
+  const wi = document.getElementById('workerUrlInput');
+  if(wi && document.activeElement !== wi) wi.value = state.settings.workerUrl || '';
 }
 renderAll();
 

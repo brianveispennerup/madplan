@@ -12,6 +12,20 @@ Et selvstændigt, afhængighedsfrit værktøj til at planlægge kalorielette dag
 3. Vælg branch `main` og mappe `/root`, og gem.
 4. Siden er tilgængelig på `https://<brugernavn>.github.io/<repo>/madplan.html`.
 
+## Sæt din egen CORS-proxy op (anbefalet, gratis, ~10 min)
+
+"Hent"-knappen ved opskrifter bruger som udgangspunkt delte, gratis proxy-tjenester (AllOrigins, Codetabs) til at hente sider på tværs af domæner — de er upålidelige (ingen driftsgaranti, deles af hele internettet). Din egen Cloudflare Worker løser det: samme mekanisme, men kun til dig, markant mere stabil, og gratis (100.000 kald/dag, intet betalingskort krævet).
+
+1. Gå til https://dash.cloudflare.com og opret en gratis konto.
+2. I venstre menu: **Workers & Pages** → **Create** → **Create Worker**.
+3. Giv den et navn, fx `madplan-proxy` → **Deploy** (den deployer først en standard "Hello World"-skabelon, det er fint).
+4. Klik **Edit code**. Slet alt den eksisterende kode, og indsæt hele indholdet af `worker.js` (leveret sammen med appen).
+5. Klik **Deploy** igen (øverst til højre).
+6. Kopiér URL'en, Cloudflare viser dig — den ser ud som `https://madplan-proxy.dit-brugernavn.workers.dev`.
+7. Åbn madplan-appen → fanen **Råvarer** → indsæt URL'en i feltet "Din egen proxy til Hent-knappen" → **Gem**.
+
+Herefter bruger "Hent"-knappen din egen Worker først, med de delte proxyer som backup, hvis noget skulle gå galt.
+
 ## Sådan installerer du den som app på mobilen
 Værktøjet er sat op som en PWA (Progressive Web App), så den kan installeres som en rigtig app-genvej — med eget ikon og uden browserens adressefelt.
 
