@@ -1,0 +1,15 @@
+{
+  "name": "Madplan",
+  "short_name": "Madplan",
+  "description": "Kalorielet madplanlægning med råvarekartotek og skalerede opskrifter.",
+  "start_url": "./madplan.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F4F5F1",
+  "theme_color": "#3E8E5C",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

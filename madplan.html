@@ -1,0 +1,1121 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Madplan</title>
+
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#3E8E5C">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Madplan">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F4F5F1; --card:#FFFFFF; --ink:#1E241F; --ink-soft:#6C766D;
+    --grad1:#DCF2C4; --grad2:#A9DDB3; --grad3:#7FC9AE;
+    --accent:#3E8E5C; --accent-dark:#2E6E45;
+    --carb:#8E9EF0; --protein:#F0A0A8; --fat:#F0CB7A;
+    --danger:#D9534F; --line:#EAEBE6;
+    --shadow: 0 2px 6px rgba(30,36,31,.05), 0 10px 24px -14px rgba(30,36,31,.18);
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--bg); color:var(--ink); font-family:'Manrope',system-ui,sans-serif; -webkit-font-smoothing:antialiased; padding-bottom:78px;}
+  h1,h2,h3,h4{margin:0; font-weight:800;}
+  .hidden{display:none !important;}
+
+  .hero{background:linear-gradient(160deg,var(--grad1),var(--grad2) 55%,var(--grad3)); padding:22px 18px 26px; border-radius:0 0 28px 28px; color:#16321f;}
+  .hero-top{display:flex; justify-content:space-between; align-items:center;}
+  .hero-top .app-name{font-size:14px; font-weight:700; letter-spacing:.02em; opacity:.75;}
+  .daypicker{display:flex; gap:8px; margin:16px 0 4px; overflow-x:auto; padding-bottom:2px;}
+  .daypicker button{flex:0 0 auto; width:38px; height:38px; border-radius:50%; border:none; background:rgba(255,255,255,.55); color:#16321f; font-weight:700; font-size:13px; cursor:pointer; position:relative;}
+  .daypicker button.active{background:#16321f; color:#EFFBEA;}
+  .daypicker button.filled::after{content:""; position:absolute; bottom:3px; left:50%; transform:translateX(-50%); width:4px; height:4px; border-radius:50%; background:var(--accent-dark);}
+  .daypicker button.active.filled::after{background:#EFFBEA;}
+  .weeklyveg{font-size:11.5px; font-weight:700; color:#2E4A31; opacity:.85; margin-bottom:8px;}
+  .clearweek{background:none; border:none; color:#2E4A31; font-size:12px; font-weight:700; text-decoration:underline; cursor:pointer; padding:4px 0; opacity:.8;}
+
+  .ring-row{display:flex; align-items:center; gap:18px; margin-top:10px;}
+  .ring{width:118px; height:118px; border-radius:50%; background:conic-gradient(#16321f var(--pct,0%), rgba(255,255,255,.5) 0); display:flex; align-items:center; justify-content:center; flex-shrink:0;}
+  .ring-inner{width:94px; height:94px; border-radius:50%; background:#EFFBEA; display:flex; flex-direction:column; align-items:center; justify-content:center;}
+  .ring-inner b{font-size:24px; line-height:1;}
+  .ring-inner span{font-size:10px; color:var(--ink-soft); margin-top:3px; text-align:center;}
+  .macrobars{flex:1; display:flex; flex-direction:column; gap:8px;}
+  .macrobar-row{font-size:11.5px; font-weight:700;}
+  .macrobar-row .lbl{display:flex; justify-content:space-between; margin-bottom:3px; opacity:.85;}
+  .macrobar-track{height:6px; border-radius:4px; background:rgba(255,255,255,.5); overflow:hidden;}
+  .macrobar-fill{height:100%; border-radius:4px;}
+
+  .target-edit{display:flex; gap:8px; margin-top:14px; align-items:center; flex-wrap:wrap;}
+  .target-edit input[type=number]{width:90px; padding:7px 9px; border-radius:10px; border:none; font-weight:700; font-size:14px; background:rgba(255,255,255,.65); color:#16321f;}
+  .target-edit .split-inputs{display:flex; gap:6px; align-items:center; font-size:11px; font-weight:700;}
+  .target-edit .split-inputs input{width:46px; padding:5px 6px; border-radius:8px; font-size:12px;}
+
+  main{max-width:520px; margin:0 auto; padding:16px 16px 8px;}
+  .card{background:var(--card); border-radius:18px; box-shadow:var(--shadow); padding:16px; margin-bottom:14px;}
+  .meal-card{display:flex; gap:12px; align-items:center; cursor:pointer;}
+  .meal-thumb{width:52px; height:52px; border-radius:14px; flex-shrink:0; background:linear-gradient(135deg,#EAF6E1,#D8EFD2); display:flex; align-items:center; justify-content:center; font-size:24px; overflow:hidden;}
+  .meal-thumb img{width:100%; height:100%; object-fit:cover;}
+  .meal-info{flex:1; min-width:0;}
+  .meal-info h3{font-size:16px; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .meal-info .sub{font-size:12.5px; color:var(--ink-soft); margin-top:2px;}
+  .meal-plus{width:34px; height:34px; border-radius:50%; border:none; background:var(--bg); display:flex; align-items:center; justify-content:center; font-size:20px; color:var(--ink-soft); flex-shrink:0;}
+  .meal-plus.filled{background:var(--accent); color:#fff;}
+  .badge{font-size:11px; font-weight:700; padding:3px 9px; border-radius:20px; display:inline-block;}
+  .badge.ok{background:#E4F5E6; color:var(--accent-dark);}
+  .badge.off{background:#FBE7E6; color:var(--danger);}
+  .meal-detail{margin-top:14px; border-top:1px solid var(--line); padding-top:12px;}
+  .meal-detail .meta-link{font-size:11.5px; color:var(--ink-soft); word-break:break-all;}
+
+  label{display:block; font-size:12px; color:var(--ink-soft); font-weight:700; margin:10px 0 4px;}
+  input[type=text],input[type=url],input[type=number],textarea,select{width:100%; padding:10px 12px; border:1.5px solid var(--line); border-radius:12px; font-family:'Manrope',sans-serif; font-size:13.5px; color:var(--ink); background:#fff;}
+  textarea{min-height:80px; resize:vertical; font-family:ui-monospace,Menlo,monospace; font-size:12.5px;}
+
+  .btn{font-family:'Manrope',sans-serif; font-weight:700; font-size:13.5px; padding:10px 16px; border-radius:12px; border:none; cursor:pointer;}
+  .btn.primary{background:var(--accent); color:#fff;}
+  .btn.ghost{background:var(--bg); color:var(--ink);}
+  .btn.danger{background:#FBE7E6; color:var(--danger);}
+  .btn.small{padding:6px 12px; font-size:12px;}
+  .btn.block{width:100%;}
+  .btn-row{display:flex; gap:8px; margin-top:12px; flex-wrap:wrap;}
+  .btn-row .btn{flex:1;}
+  .choice-row{display:flex; gap:8px; margin-bottom:10px;}
+  .choice-row button{flex:1;}
+
+  table{width:100%; border-collapse:collapse; margin-top:10px; font-size:12.5px;}
+  th{font-size:10px; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-soft); text-align:left; padding:5px 6px; border-bottom:1.5px solid var(--ink);}
+  td{padding:6px 6px; border-bottom:1px solid var(--line);}
+  tr.sum td{border-top:1.5px solid var(--ink); border-bottom:none; font-weight:800;}
+  tr.unmatched td.name{color:var(--danger);}
+  .tag-warn{font-size:9.5px; background:#FBE7E6; color:var(--danger); padding:1px 6px; border-radius:8px; margin-left:5px;}
+  .extra-nutrition{margin-top:10px; font-size:12px; color:var(--ink-soft); display:flex; gap:14px; flex-wrap:wrap;}
+  .extra-nutrition b{color:var(--ink);}
+
+  .steps{margin:10px 0 0; padding-left:18px; font-size:13px; color:var(--ink-soft);}
+  .steps li{margin-bottom:5px;}
+
+  .picker-search{position:relative;}
+  .picker-results{max-height:180px; overflow-y:auto; border:1.5px solid var(--line); border-radius:12px; margin-top:6px;}
+  .picker-item{padding:9px 12px; font-size:13px; cursor:pointer; border-bottom:1px solid var(--line); display:flex; justify-content:space-between;}
+  .picker-item:last-child{border-bottom:none;}
+  .picker-item:hover{background:var(--bg);}
+  .picker-item .kc{color:var(--ink-soft); font-size:11.5px;}
+
+  .lib-card{display:flex; gap:12px; align-items:center;}
+  .lib-card .del{background:none; border:none; color:var(--ink-soft); font-size:18px; cursor:pointer; padding:6px;}
+
+  .shop-group h4{font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:var(--accent-dark); margin:16px 0 6px;}
+  .shop-item{display:flex; align-items:center; gap:10px; padding:9px 4px; border-bottom:1px solid var(--line);}
+  .shop-item input[type=checkbox]{width:18px; height:18px; accent-color:var(--accent);}
+  .shop-item label{flex:1; font-size:14px; margin:0; font-weight:600; color:var(--ink);}
+  .shop-item.checked label{text-decoration:line-through; color:var(--ink-soft); font-weight:400;}
+  .shop-item .amt{font-size:12px; color:var(--ink-soft); font-weight:700;}
+
+  .kart-scroll{overflow-x:auto;}
+  .kart-row{display:grid; grid-template-columns:1.4fr .6fr .6fr .6fr .6fr .6fr .6fr .6fr; gap:6px; align-items:center; padding:7px 4px; border-bottom:1px solid var(--line); font-size:11.5px; min-width:640px;}
+  .kart-row.headrow{font-size:9.5px; text-transform:uppercase; color:var(--ink-soft); font-weight:700; border-bottom:1.5px solid var(--ink);}
+  .kart-row input{padding:5px 5px; font-size:11px; border-radius:8px;}
+  .src{font-size:8.5px; font-weight:800; padding:2px 5px; border-radius:6px; white-space:nowrap;}
+  .src.frida{background:#E4F5E6; color:var(--accent-dark);}
+  .src.user{background:#FCEFE0; color:#9A6A25;}
+  .src.off{background:#E3EEFB; color:#2A5C8A;}
+
+  .hint{font-size:12px; color:var(--ink-soft); line-height:1.5; margin-top:6px;}
+  .section-title{font-size:19px; font-weight:800; margin:4px 0 14px;}
+
+  nav.bottomnav{position:fixed; bottom:0; left:0; right:0; background:#fff; border-top:1px solid var(--line); display:flex; padding:8px 6px 10px; box-shadow:0 -4px 16px rgba(0,0,0,.04); z-index:50;}
+  nav.bottomnav button{flex:1; background:none; border:none; display:flex; flex-direction:column; align-items:center; gap:3px; color:var(--ink-soft); font-size:10.5px; font-weight:700; cursor:pointer; padding:4px 0;}
+  nav.bottomnav button.active{color:var(--accent-dark);}
+  nav.bottomnav svg{width:22px; height:22px;}
+
+  .panel{display:none;}
+  .panel.active{display:block;}
+  .empty-state{text-align:center; padding:40px 16px; color:var(--ink-soft);}
+  .empty-state .em{font-size:34px; margin-bottom:8px;}
+
+  #scanModal{position:fixed; inset:0; background:rgba(10,14,11,.92); z-index:200; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:24px;}
+  #scanVideo{width:100%; max-width:380px; border-radius:16px; background:#000;}
+  #scanStatus{color:#fff; font-size:13px; margin-top:12px; text-align:center; max-width:320px;}
+  .scan-manual{display:flex; gap:8px; margin-top:16px;}
+  .scan-manual input{width:180px;}
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="hero-top">
+    <span class="app-name">🌿 Madplan</span>
+    <button class="clearweek" id="clearWeekBtn">Ryd uge</button>
+  </div>
+
+  <div class="daypicker" id="daypicker"></div>
+  <div class="weeklyveg" id="weeklyVeg"></div>
+
+  <div class="ring-row">
+    <div class="ring" id="ring">
+      <div class="ring-inner"><b id="ringKcal">0</b><span id="ringLabel">kcal tilbage</span></div>
+    </div>
+    <div class="macrobars">
+      <div class="macrobar-row"><div class="lbl"><span>Kulhydrat</span><span id="carbTxt">0/0g</span></div><div class="macrobar-track"><div class="macrobar-fill" style="background:var(--carb);" id="carbBar"></div></div></div>
+      <div class="macrobar-row"><div class="lbl"><span>Protein</span><span id="proteinTxt">0/0g</span></div><div class="macrobar-track"><div class="macrobar-fill" style="background:var(--protein);" id="proteinBar"></div></div></div>
+      <div class="macrobar-row"><div class="lbl"><span>Fedt</span><span id="fatTxt">0/0g</span></div><div class="macrobar-track"><div class="macrobar-fill" style="background:var(--fat);" id="fatBar"></div></div></div>
+    </div>
+  </div>
+
+  <div class="target-edit">
+    <div><label style="color:#2E4A31; margin-bottom:2px;">Dagsmål</label><input type="number" id="dayTarget" step="10"></div>
+    <div class="split-inputs"><span>M</span><input type="number" id="splitMorgen"><span>F</span><input type="number" id="splitFrokost"><span>A</span><input type="number" id="splitAften"><span>%</span></div>
+  </div>
+  <div class="hint" id="splitWarning" style="color:#2E4A31;"></div>
+</div>
+
+<main>
+  <section id="tab-dag" class="panel active">
+    <div id="mealsContainer"></div>
+    <div class="card" id="dayExtraCard"></div>
+  </section>
+
+  <section id="tab-retter" class="panel">
+    <div class="section-title">Retter</div>
+    <input type="text" id="libSearch" placeholder="Søg i dine gemte retter…" style="margin-bottom:14px;">
+    <div id="libraryList"></div>
+  </section>
+
+  <section id="tab-indkob" class="panel">
+    <div class="section-title">Indkøbsliste</div>
+    <div class="card">
+      <p class="hint" style="margin-top:0;">Summeret på tværs af alle dage. Klik for at afkrydse.</p>
+      <label style="margin-top:0;">Sortering</label>
+      <select id="shopSort">
+        <option value="kategori">Efter varetype (kategori)</option>
+        <option value="alfabetisk">Alfabetisk</option>
+        <option value="mængde">Størst mængde først</option>
+      </select>
+      <div id="shoppingList" style="margin-top:10px;"></div>
+    </div>
+  </section>
+
+  <section id="tab-kartotek" class="panel">
+    <div class="section-title">Råvarekartotek</div>
+    <p class="hint">Kartoteket er bygget på Frida-data (DTU Fødevareinstituttet, v6.1) — reelle værdier, ikke tilnærmelser. Data for fødevarers næringsindhold er stillet til rådighed af DTU Fødevareinstituttet (frida.fooddata.dk). Du kan stadig rette eller tilføje egne råvarer, eller scanne en stregkode for produkter fra Open Food Facts.</p>
+    <button class="btn primary block" style="margin:12px 0;" onclick="openScan()">📷 Scan stregkode</button>
+    <input type="text" id="kartotekSearch" placeholder="Søg råvare…" style="margin-bottom:12px;">
+    <div id="kartotekListWrap">
+      <div class="kart-scroll">
+        <div class="kart-row headrow"><div>Navn</div><div>Kcal</div><div>Protein</div><div>Fedt</div><div>Mæt.fedt</div><div>Kulh.</div><div>Fibre</div><div>Salt</div></div>
+        <div id="kartotekList"></div>
+      </div>
+    </div>
+    <div id="kartotekEmptyHint" class="empty-state"></div>
+
+    <button class="btn ghost block" id="toggleManualAddBtn" style="margin-top:18px;" onclick="toggleManualAdd()">+ Tilføj råvare manuelt</button>
+    <div id="manualAddForm" class="hidden">
+      <h3 style="margin:16px 0 8px; font-size:14px;">Tilføj råvare manuelt</h3>
+      <label>Navn</label><input type="text" id="newName">
+      <div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">
+        <div style="flex:1; min-width:70px;"><label>Kcal</label><input type="number" id="newKcal"></div>
+        <div style="flex:1; min-width:70px;"><label>Protein</label><input type="number" id="newProtein"></div>
+        <div style="flex:1; min-width:70px;"><label>Fedt</label><input type="number" id="newFat"></div>
+        <div style="flex:1; min-width:70px;"><label>Mæt. fedt</label><input type="number" id="newSatFat"></div>
+        <div style="flex:1; min-width:70px;"><label>Kulh.</label><input type="number" id="newCarb"></div>
+        <div style="flex:1; min-width:70px;"><label>Fibre</label><input type="number" id="newFiber"></div>
+        <div style="flex:1; min-width:70px;"><label>Salt</label><input type="number" id="newSalt"></div>
+      </div>
+      <label>Kategori</label>
+      <select id="newCat">
+        <option value="kød_fisk">Kød/fisk</option>
+        <option value="mejeri_æg">Mejeri/æg</option>
+        <option value="grønt">Grønt/frugt</option>
+        <option value="kornprodukter">Kornprodukter</option>
+        <option value="fedtstof">Fedtstof</option>
+        <option value="krydderi_andet">Krydderi/andet</option>
+      </select>
+      <button class="btn primary block" style="margin-top:12px;" onclick="addKartotekEntry()">Tilføj til kartotek</button>
+    </div>
+  </section>
+</main>
+
+<nav class="bottomnav">
+  <button data-tab="dag" class="active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M8 2v4M16 2v4M3 10h18"/></svg>Dag</button>
+  <button data-tab="retter"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h11a3 3 0 0 1 3 3v13H7a3 3 0 0 1-3-3V4z"/><path d="M18 4h2v16h-2"/></svg>Retter</button>
+  <button data-tab="indkob"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="20" r="1.4"/><circle cx="17" cy="20" r="1.4"/><path d="M2 3h2l2.6 12.6a2 2 0 0 0 2 1.6h8.8a2 2 0 0 0 2-1.6L21 7H5.2"/></svg>Indkøb</button>
+  <button data-tab="kartotek"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>Råvarer</button>
+</nav>
+
+<div id="scanModal" class="hidden">
+  <video id="scanVideo" autoplay playsinline muted></video>
+  <div id="scanStatus">Starter kamera…</div>
+  <div class="scan-manual">
+    <input type="text" id="manualBarcode" placeholder="Indtast stregkode manuelt">
+    <button class="btn primary small" onclick="lookupBarcode(document.getElementById('manualBarcode').value)">Slå op</button>
+  </div>
+  <button class="btn ghost small" style="margin-top:14px;" onclick="closeScan()">Luk</button>
+</div>
+
+<script>
+/* ============================================================
+   STATE
+============================================================ */
+const STORAGE_KEY = 'madplan_kartotek_v3';
+
+function defaultKartotek(){
+  const D = {};
+  const add = (name, o) => { D[name] = {
+    kcal:o.kcal, protein:o.protein, fat:o.fat, carb:o.carb,
+    satFat:o.satFat||0, fiber:o.fiber||0, salt:o.salt||0,
+    category:o.category, unitWeights:o.units||{}, source:'frida'
+  };};
+  add('kyllingefilet',{kcal:148.5,protein:21.5,fat:6.9,carb:0.1,satFat:1.96,fiber:0.0,salt:0.16,category:'kød_fisk'});
+  add('kyllingeinderfilet',{kcal:148.5,protein:21.5,fat:6.9,carb:0.1,satFat:1.96,fiber:0.0,salt:0.16,category:'kød_fisk'});
+  add('hakket oksekød',{kcal:172.98,protein:20.0,fat:10.33,carb:0.0,satFat:4.11,fiber:0.0,salt:0.16,category:'kød_fisk'});
+  add('hakket svinekød',{kcal:195,protein:19,fat:13,carb:0,satFat:5,fiber:0,salt:0.15,category:'kød_fisk'});
+  add('bacon',{kcal:300,protein:13,fat:28,carb:0.5,satFat:10,fiber:0,salt:2,category:'kød_fisk'});
+  add('laks',{kcal:158.88,protein:18.4,fat:7.46,carb:4.54,satFat:1.41,fiber:0.0,salt:0.14,category:'kød_fisk'});
+  add('torsk',{kcal:75.27,protein:17.51,fat:0.58,carb:0.0,satFat:0.1,fiber:0.0,salt:0.19,category:'kød_fisk'});
+  add('æg',{kcal:137.05,protein:11.99,fat:9.4,carb:1.12,satFat:2.67,fiber:0.0,salt:0.34,category:'mejeri_æg',units:{stk:60}});
+  add('hytteost',{kcal:75.92,protein:13.59,fat:1.2,carb:2.69,satFat:0.77,fiber:0.0,salt:0.9,category:'mejeri_æg'});
+  add('mælk',{kcal:34.96,protein:3.57,fat:0.09,carb:4.96,satFat:0.06,fiber:0.0,salt:0.09,category:'mejeri_æg',units:{dl:100}});
+  add('yoghurt naturel',{kcal:62.18,protein:3.79,fat:3.57,carb:2.78,satFat:2.31,fiber:0.0,salt:0.12,category:'mejeri_æg'});
+  add('skyr',{kcal:69.98,protein:11.0,fat:0.2,carb:6.05,satFat:0.1,fiber:0.0,salt:0.11,category:'mejeri_æg'});
+  add('müsli',{kcal:405.14,protein:9.43,fat:11.12,carb:63.26,satFat:1.84,fiber:7.16,salt:0.17,category:'kornprodukter'});
+  add('cheddarost',{kcal:405.31,protein:25.81,fat:33.1,carb:0.0,satFat:21.42,fiber:0.0,salt:1.7,category:'mejeri_æg'});
+  add('mozzarella',{kcal:326.3,protein:24.1,fat:25.1,carb:1.0,satFat:16.25,fiber:0.0,salt:1.4,category:'mejeri_æg'});
+  add('parmesan',{kcal:359.7,protein:33.6,fat:24.38,carb:1.48,satFat:15.79,fiber:0.0,salt:2.5,category:'mejeri_æg'});
+  add('smør',{kcal:740.9,protein:0.65,fat:81.51,carb:1.18,satFat:53.54,fiber:0.0,salt:0.93,category:'fedtstof'});
+  add('olivenolie',{kcal:900.0,protein:0.0,fat:100.0,carb:0.0,satFat:12.24,fiber:0.0,salt:0.01,category:'fedtstof'});
+  add('rapsolie',{kcal:900.0,protein:0.0,fat:100.0,carb:0.0,satFat:6.12,fiber:0.0,salt:0.0,category:'fedtstof'});
+  add('gulerødder',{kcal:29.31,protein:0.25,fat:0.05,carb:5.71,satFat:0.01,fiber:2.51,salt:0.1,category:'grønt',units:{stk:100}});
+  add('løg',{kcal:43.19,protein:1.25,fat:0.09,carb:8.43,satFat:0.02,fiber:1.86,salt:0.01,category:'grønt',units:{stk:110}});
+  add('rødløg',{kcal:40,protein:1.1,fat:0.1,carb:9.3,satFat:0.02,fiber:1.7,salt:0.003,category:'grønt',units:{stk:110}});
+  add('hvidløg',{kcal:100.5,protein:6.57,fat:0.5,carb:16.43,satFat:0.09,fiber:2.0,salt:0.04,category:'grønt',units:{fed:3}});
+  add('peberfrugt',{kcal:31.46,protein:0.92,fat:0.1,carb:5.86,satFat:0.02,fiber:1.71,salt:0.0,category:'grønt',units:{stk:150}});
+  add('tomat',{kcal:19.7,protein:0.7,fat:0.3,carb:2.6,satFat:0.06,fiber:1.9,salt:0.02,category:'grønt',units:{stk:120}});
+  add('tomatpuré',{kcal:43.4,protein:1.6,fat:0.2,carb:8.6,satFat:0.04,fiber:0.4,salt:1.08,category:'grønt'});
+  add('hakkede tomater',{kcal:21.3,protein:1.13,fat:0.3,carb:3.07,satFat:0.06,fiber:0.9,salt:0.36,category:'grønt',units:{ds:400}});
+  add('squash',{kcal:14.8,protein:1.27,fat:0.1,carb:1.61,satFat:0.02,fiber:1.2,salt:0.0,category:'grønt',units:{stk:200}});
+  add('blomkål',{kcal:18.75,protein:1.7,fat:0.0,carb:2.06,satFat:0.0,fiber:1.86,salt:0.03,category:'grønt'});
+  add('broccoli',{kcal:35.19,protein:3.55,fat:0.24,carb:3.08,satFat:0.04,fiber:3.24,salt:0.03,category:'grønt'});
+  add('spinat',{kcal:24.44,protein:2.62,fat:0.57,carb:1.26,satFat:0.07,fiber:1.9,salt:0.1,category:'grønt'});
+  add('babyspinat',{kcal:15.73,protein:2.47,fat:0.04,carb:0.53,satFat:0.0,fiber:1.7,salt:0.08,category:'grønt'});
+  add('porre',{kcal:34.86,protein:1.95,fat:0.23,carb:4.67,satFat:0.05,fiber:3.16,salt:0.02,category:'grønt',units:{stk:150}});
+  add('champignon',{kcal:22.97,protein:2.34,fat:0.12,carb:2.72,satFat:0.03,fiber:0.8,salt:0.01,category:'grønt'});
+  add('kartofler',{kcal:77.04,protein:2.03,fat:0.29,carb:15.86,satFat:0.06,fiber:1.44,salt:0.02,category:'grønt',units:{stk:80}});
+  add('agurk',{kcal:11.85,protein:0.72,fat:0.03,carb:1.8,satFat:0.01,fiber:0.77,salt:0.01,category:'grønt',units:{stk:300}});
+  add('æble',{kcal:55.06,protein:0.27,fat:0.23,carb:12.05,satFat:0.04,fiber:2.21,salt:0.0,category:'grønt',units:{stk:130}});
+  add('banan',{kcal:93.48,protein:1.14,fat:0.21,carb:20.96,satFat:0.08,fiber:1.63,salt:0.0,category:'grønt',units:{stk:120}});
+  add('bær (blandede)',{kcal:43,protein:0.8,fat:0.3,carb:9,satFat:0.03,fiber:3.5,salt:0.001,category:'grønt'});
+  add('avocado',{kcal:155.01,protein:1.62,fat:15.06,carb:0.5,satFat:2.82,fiber:5.49,salt:0.01,category:'grønt',units:{stk:170}});
+  add('ris',{kcal:354.2,protein:8.4,fat:1.2,carb:77.1,satFat:0.27,fiber:0.7,salt:0.0,category:'kornprodukter'});
+  add('fuldkornsris',{kcal:357.87,protein:9.0,fat:2.9,carb:71.84,satFat:0.66,fiber:4.2,salt:0.0,category:'kornprodukter'});
+  add('pasta',{kcal:361.4,protein:12.33,fat:1.8,carb:72.37,satFat:0.25,fiber:3.2,salt:0.01,category:'kornprodukter'});
+  add('fuldkornspasta',{kcal:351.7,protein:13.1,fat:2.9,carb:63.5,satFat:0.41,fiber:9.6,salt:0.01,category:'kornprodukter'});
+  add('havregryn',{kcal:366.45,protein:12.88,fat:6.88,carb:58.31,satFat:1.19,fiber:9.88,salt:0.0,category:'kornprodukter'});
+  add('rugbrød',{kcal:205.32,protein:5.45,fat:1.18,carb:39.79,satFat:0.18,fiber:6.89,salt:1.46,category:'kornprodukter'});
+  add('mel',{kcal:343.29,protein:9.7,fat:1.55,carb:69.66,satFat:0.38,fiber:5.97,salt:0.0,category:'kornprodukter'});
+  add('sukker',{kcal:399.52,protein:0.0,fat:0.0,carb:99.88,satFat:0.0,fiber:0.0,salt:0.0,category:'krydderi_andet'});
+  add('paprika',{kcal:282,protein:14,fat:13,carb:54,satFat:4.4,fiber:35,salt:0.07,category:'krydderi_andet'});
+  add('peber',{kcal:303.94,protein:10.95,fat:3.26,carb:44.45,satFat:1.39,fiber:26.5,salt:0.11,category:'krydderi_andet'});
+  add('forårsløg',{kcal:33.19,protein:1.83,fat:0.19,carb:4.74,satFat:0.03,fiber:2.6,salt:0.04,category:'grønt',units:{bdt:50}});
+  add('persille',{kcal:48.07,protein:3.71,fat:1.15,carb:3.67,satFat:0.16,fiber:4.1,salt:0.16,category:'krydderi_andet'});
+  add('madlavningsfløde',{kcal:110.84,protein:3.32,fat:9.02,carb:4.09,satFat:5.63,fiber:0.0,salt:0.09,category:'mejeri_æg',units:{dl:100}});
+  add('fløde 38%',{kcal:360.35,protein:2.12,fat:38.02,carb:2.31,satFat:24.27,fiber:0.0,salt:0.07,category:'mejeri_æg',units:{dl:100}});
+  add('creme fraiche',{kcal:192.0,protein:2.82,fat:18.57,carb:2.88,satFat:12.42,fiber:0.0,salt:0.07,category:'mejeri_æg'});
+  add('rasp',{kcal:351.3,protein:10.7,fat:1.5,carb:70.3,satFat:0.3,fiber:6.9,salt:1.06,category:'kornprodukter'});
+  add('tacokrydderi',{kcal:280,protein:8,fat:3,carb:50,satFat:0.5,fiber:5,salt:15,category:'krydderi_andet'});
+  add('hønsebouillonterning',{kcal:80,protein:10,fat:2,carb:8,satFat:1,fiber:0,salt:40,category:'krydderi_andet',units:{stk:10}});
+  return D;
+}
+
+let state = loadState();
+function loadState(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(raw){
+      const parsed = JSON.parse(raw);
+      if(!parsed.kartotek) parsed.kartotek = defaultKartotek();
+      if(!parsed.days) parsed.days = {};
+      if(!parsed.shoppingChecked) parsed.shoppingChecked = {};
+      if(!parsed.recipeLibrary) parsed.recipeLibrary = {};
+      return parsed;
+    }
+  }catch(e){ console.warn('Kunne ikke læse gemt data.', e); }
+  return { kartotek: defaultKartotek(), days: {}, shoppingChecked: {}, recipeLibrary: {} };
+}
+function saveState(){
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+  catch(e){ console.warn('Kunne ikke gemme (localStorage utilgængelig i denne visning).', e); }
+}
+function getDay(n){
+  if(!state.days[n]) state.days[n] = { target:2000, split:{morgen:25,frokost:30,aften:45}, meals:{morgen:null,frokost:null,aften:null} };
+  return state.days[n];
+}
+let currentDay = 1;
+let openSlot = null;
+let addMode = {};
+
+/* ============================================================
+   PARSING
+============================================================ */
+const UNIT_ML = {g:1,kg:1000,dl:100,ml:1,cl:10,l:1000,spsk:15,tsk:5};
+const UNIT_COUNT = ['stk','fed','bdt','ds','dåse','pk','ps','knivspids'];
+function normalizeFraction(str){
+  return str.replace(/½/g,'0.5').replace(/¼/g,'0.25').replace(/¾/g,'0.75')
+    .replace(/(\d+)\/(\d+)/g,(m,a,b)=>(parseFloat(a)/parseFloat(b)).toString());
+}
+function findKartotekMatch(rawName){
+  let n = rawName.toLowerCase().replace(/\(.*?\)/g,'')
+    .replace(/\b(evt\.?|ca\.?|frisk[e]?|hakket|hakkede|revet|revne|små|stor[e]?|lille|øko|økologisk[e]?)\b/g,'')
+    .replace(/[.,]/g,'').trim();
+  let best=null,bestLen=0;
+  for(const key in state.kartotek){ if(n.includes(key) && key.length>bestLen){best=key;bestLen=key.length;} }
+  return best;
+}
+function gramsFromUnit(matchedKey, amount, unit){
+  const entry = state.kartotek[matchedKey];
+  if(!entry) return 0;
+  const density = entry.category==='fedtstof' ? 0.92 : 1;
+  if(UNIT_COUNT.includes(unit)){
+    const uw = entry.unitWeights[unit];
+    return amount*(uw!==undefined?uw:(unit==='stk'?100:(unit==='fed'?3:(unit==='bdt'?50:(unit==='ds'?400:250)))));
+  }
+  return amount*(UNIT_ML[unit]||1)*density;
+}
+function parseIngredientLine(line){
+  let txt = normalizeFraction(line.trim());
+  if(!txt) return null;
+  txt = txt.replace(/^(evt\.?|ca\.?)\s*/i,'');
+  const m = txt.match(/^([\d.,]+)\s*([a-zæøå.]+)?\.?\s+(.+)$/i);
+  if(!m) return { raw:line, amount:null, unit:null, name:txt, matchedKey:null, grams:0 };
+  let amount = parseFloat(m[1].replace(',','.'));
+  let unitToken = (m[2]||'').toLowerCase().replace('.','');
+  let rest = m[3];
+  let unit=null;
+  if(UNIT_ML[unitToken]!==undefined) unit=unitToken;
+  else if(UNIT_COUNT.includes(unitToken)) unit=unitToken;
+  else { rest=(unitToken?unitToken+' ':'')+rest; unit='stk'; }
+  const matchedKey = findKartotekMatch(rest);
+  const grams = matchedKey ? gramsFromUnit(matchedKey, amount, unit) : 0;
+  return { raw:line, amount, unit, name:rest.trim(), matchedKey, grams };
+}
+function macrosFor(ing){
+  if(!ing.matchedKey) return {kcal:0,protein:0,fat:0,carb:0,satFat:0,fiber:0,salt:0};
+  const e = state.kartotek[ing.matchedKey];
+  const f = ing.grams/100;
+  return { kcal:e.kcal*f, protein:e.protein*f, fat:e.fat*f, carb:e.carb*f,
+            satFat:(e.satFat||0)*f, fiber:(e.fiber||0)*f, salt:(e.salt||0)*f };
+}
+function scaledMealTotals(meal, mealTarget){
+  const ings = meal.ingredients.map(i=>({...i,...macrosFor(i)}));
+  const origTotal = ings.reduce((s,i)=>s+i.kcal,0);
+  const scale = origTotal>0 ? mealTarget/origTotal : 1;
+  const scaledIngs = ings.map(i=>{
+    const grams=i.grams*scale;
+    const e = i.matchedKey ? state.kartotek[i.matchedKey] : null;
+    const f = grams/100;
+    return {...i, scaledGrams:grams,
+      kcal:e?e.kcal*f:0, protein:e?e.protein*f:0, fat:e?e.fat*f:0, carb:e?e.carb*f:0,
+      satFat:e?(e.satFat||0)*f:0, fiber:e?(e.fiber||0)*f:0, salt:e?(e.salt||0)*f:0,
+      isVeg: e ? e.category==='grønt' : false };
+  });
+  return {
+    ingredients: scaledIngs, scale,
+    kcal: scaledIngs.reduce((s,i)=>s+i.kcal,0),
+    protein: scaledIngs.reduce((s,i)=>s+i.protein,0),
+    fat: scaledIngs.reduce((s,i)=>s+i.fat,0),
+    carb: scaledIngs.reduce((s,i)=>s+i.carb,0),
+    satFat: scaledIngs.reduce((s,i)=>s+i.satFat,0),
+    fiber: scaledIngs.reduce((s,i)=>s+i.fiber,0),
+    salt: scaledIngs.reduce((s,i)=>s+i.salt,0),
+    vegGrams: scaledIngs.reduce((s,i)=>s+(i.isVeg?i.scaledGrams:0),0),
+  };
+}
+function mealLabel(k){ return {morgen:'Morgenmad',frokost:'Frokost',aften:'Aftensmad'}[k]; }
+function mealEmoji(k){ return {morgen:'🥣',frokost:'🥗',aften:'🍲'}[k]; }
+
+/* ============================================================
+   HERO
+============================================================ */
+function renderHero(){
+  const day = getDay(currentDay);
+  document.getElementById('dayTarget').value = day.target;
+  document.getElementById('splitMorgen').value = day.split.morgen;
+  document.getElementById('splitFrokost').value = day.split.frokost;
+  document.getElementById('splitAften').value = day.split.aften;
+  const sum = day.split.morgen+day.split.frokost+day.split.aften;
+  const warn = document.getElementById('splitWarning');
+  warn.textContent = sum===100 ? '' : `Fordelingen summer til ${sum}%, ikke 100%.`;
+
+  let kcal=0,p=0,f=0,c=0;
+  ['morgen','frokost','aften'].forEach(slot=>{
+    const meal = day.meals[slot];
+    if(!meal) return;
+    const t = scaledMealTotals(meal, day.target*(day.split[slot]/100));
+    kcal+=t.kcal; p+=t.protein; f+=t.fat; c+=t.carb;
+  });
+  const remaining = Math.max(0, Math.round(day.target-kcal));
+  const pct = day.target>0 ? Math.min(100,(kcal/day.target)*100) : 0;
+  document.getElementById('ring').style.setProperty('--pct', pct+'%');
+  document.getElementById('ringKcal').textContent = remaining;
+  document.getElementById('ringLabel').textContent = kcal===0 ? 'kcal (mål '+day.target+')' : 'kcal tilbage';
+
+  const goalP = day.target*0.30/4, goalC = day.target*0.40/4, goalF = day.target*0.30/9;
+  const setBar=(id,val,goal)=>{
+    document.getElementById(id+'Bar').style.width = Math.min(100,(val/Math.max(1,goal))*100)+'%';
+    document.getElementById(id+'Txt').textContent = Math.round(val)+'/'+Math.round(goal)+'g';
+  };
+  setBar('carb',c,goalC); setBar('protein',p,goalP); setBar('fat',f,goalF);
+
+  document.getElementById('weeklyVeg').textContent = '🥦 '+weeklyVeggieCount()+' forskellige grøntsager/frugter brugt i ugen';
+}
+document.getElementById('dayTarget').addEventListener('change', e=>{ getDay(currentDay).target=parseFloat(e.target.value)||0; saveState(); renderAll(); });
+['Morgen','Frokost','Aften'].forEach(k=>{
+  document.getElementById('split'+k).addEventListener('change', e=>{ getDay(currentDay).split[k.toLowerCase()]=parseFloat(e.target.value)||0; saveState(); renderAll(); });
+});
+
+function weeklyVeggieCount(){
+  const set = new Set();
+  for(const dayNum in state.days){
+    const day = state.days[dayNum];
+    ['morgen','frokost','aften'].forEach(slot=>{
+      const meal = day.meals[slot];
+      if(!meal) return;
+      meal.ingredients.forEach(i=>{ if(i.matchedKey && state.kartotek[i.matchedKey].category==='grønt') set.add(i.matchedKey); });
+    });
+  }
+  return set.size;
+}
+
+/* ============================================================
+   DAY PICKER + CLEAR WEEK
+============================================================ */
+function renderDayPicker(){
+  const el = document.getElementById('daypicker'); el.innerHTML='';
+  for(let i=1;i<=7;i++){
+    const b=document.createElement('button'); b.textContent=i;
+    if(i===currentDay) b.classList.add('active');
+    if(state.days[i] && Object.values(state.days[i].meals).some(m=>m)) b.classList.add('filled');
+    b.onclick=()=>{ currentDay=i; openSlot=null; renderAll(); };
+    el.appendChild(b);
+  }
+}
+let clearArmed=false, clearTimer=null;
+document.getElementById('clearWeekBtn').addEventListener('click', ()=>{
+  const btn=document.getElementById('clearWeekBtn');
+  if(!clearArmed){ clearArmed=true; btn.textContent='Sikker? Klik igen'; clearTimer=setTimeout(()=>{clearArmed=false; btn.textContent='Ryd uge';},4000); }
+  else { clearTimeout(clearTimer); state.days={}; state.shoppingChecked={}; clearArmed=false; btn.textContent='Ryd uge'; saveState(); renderAll(); }
+});
+
+/* ============================================================
+   MEALS (Dag-fane)
+============================================================ */
+function libraryMatches(query){
+  query=(query||'').toLowerCase();
+  return Object.keys(state.recipeLibrary).map(id=>({id,...state.recipeLibrary[id]})).filter(r=>r.title.toLowerCase().includes(query));
+}
+
+function renderMeals(){
+  const day = getDay(currentDay);
+  const container = document.getElementById('mealsContainer');
+  container.innerHTML='';
+
+  ['morgen','frokost','aften'].forEach(slot=>{
+    const meal = day.meals[slot];
+    const mealTarget = day.target*(day.split[slot]/100);
+    const card = document.createElement('div');
+    card.className='card';
+    const isOpen = openSlot===slot;
+
+    if(!meal){
+      card.innerHTML = `
+        <div class="meal-card" onclick="toggleSlot('${slot}')">
+          <div class="meal-thumb">${mealEmoji(slot)}</div>
+          <div class="meal-info"><h3>${mealLabel(slot)}</h3><div class="sub">Anbefalet: ${Math.round(mealTarget)} kcal</div></div>
+          <button class="meal-plus">+</button>
+        </div>
+        ${isOpen ? `
+        <div class="meal-detail">
+          <div class="choice-row">
+            <button class="btn ghost small" id="choiceLib-${slot}" onclick="setAddMode('${slot}','lib')">Vælg fra kartotek</button>
+            <button class="btn ghost small" id="choicePaste-${slot}" onclick="setAddMode('${slot}','paste')">Indsæt opskrift</button>
+            <button class="btn ghost small" id="choiceBuild-${slot}" onclick="setAddMode('${slot}','build')">Byg egen ret</button>
+          </div>
+          <div id="addArea-${slot}"></div>
+        </div>` : ''}
+      `;
+      container.appendChild(card);
+      if(isOpen) renderAddArea(slot);
+      return;
+    }
+
+    const t = scaledMealTotals(meal, mealTarget);
+    const within = Math.abs(t.kcal-mealTarget) <= (mealTarget*0.05+15);
+    let rows = t.ingredients.map(i=>`
+      <tr class="${i.matchedKey?'':'unmatched'}">
+        <td class="name">${i.name}${i.matchedKey?'':'<span class="tag-warn">ej matchet</span>'}</td>
+        <td>${i.amount!==null?(i.amount+' '+(i.unit||'')):'–'}</td>
+        <td>${i.matchedKey?Math.round(i.scaledGrams)+' g':'–'}</td>
+        <td>${Math.round(i.kcal)}</td>
+        <td>${i.protein.toFixed(1)}</td>
+        <td>${i.fat.toFixed(1)}</td>
+        <td>${i.carb.toFixed(1)}</td>
+      </tr>`).join('');
+
+    card.innerHTML = `
+      <div class="meal-card" onclick="toggleSlot('${slot}')">
+        <div class="meal-thumb">${meal.imageUrl?`<img src="${meal.imageUrl}">`:mealEmoji(slot)}</div>
+        <div class="meal-info"><h3>${meal.title}</h3><div class="sub"><span class="badge ${within?'ok':'off'}">${Math.round(t.kcal)} / ${Math.round(mealTarget)} kcal</span></div></div>
+        <button class="meal-plus filled">✓</button>
+      </div>
+      ${isOpen ? `
+      <div class="meal-detail">
+        ${meal.url ? `<div class="meta-link"><a href="${meal.url}" target="_blank" rel="noopener">${meal.url}</a></div>` : '<div class="meta-link">Egen ret — ingen kilde.</div>'}
+        <table>
+          <thead><tr><th>Ingrediens</th><th>Orig.</th><th>Skaleret</th><th>Kcal</th><th>Prot.</th><th>Fedt</th><th>Kulh.</th></tr></thead>
+          <tbody>${rows}<tr class="sum"><td class="name">I alt</td><td></td><td></td><td>${Math.round(t.kcal)}</td><td>${t.protein.toFixed(1)}</td><td>${t.fat.toFixed(1)}</td><td>${t.carb.toFixed(1)}</td></tr></tbody>
+        </table>
+        <div class="extra-nutrition">
+          <span><b>${t.satFat.toFixed(1)}g</b> mættet fedt</span>
+          <span><b>${t.fiber.toFixed(1)}g</b> fibre</span>
+          <span><b>${t.salt.toFixed(2)}g</b> salt</span>
+          <span><b>${Math.round(t.vegGrams)}g</b> grøntsager</span>
+        </div>
+        ${meal.steps && meal.steps.length ? `<ol class="steps">${meal.steps.map(s=>`<li>${s}</li>`).join('')}</ol>` : ''}
+        <div class="btn-row">
+          <button class="btn primary small" onclick="saveMealToLibrary('${slot}')">Gem i kartotek</button>
+          <button class="btn ghost small" onclick="deleteMeal('${slot}')">Fjern fra dag</button>
+        </div>
+      </div>` : ''}
+    `;
+    container.appendChild(card);
+  });
+}
+
+function toggleSlot(slot){ openSlot = openSlot===slot ? null : slot; addMode[slot]=null; pendingIngredients[slot]=[]; renderAll(); }
+function setAddMode(slot, mode){ addMode[slot]=mode; if(mode==='build') pendingIngredients[slot]=[]; renderAddArea(slot); }
+
+function renderAddArea(slot){
+  const area = document.getElementById('addArea-'+slot);
+  if(!area) return;
+  const mode = addMode[slot];
+  if(mode==='lib'){
+    area.innerHTML = `<div class="picker-search"><input type="text" id="libpick-${slot}" placeholder="Søg gemte retter…"><div class="picker-results" id="libpickResults-${slot}"></div></div>`;
+    const input = document.getElementById('libpick-'+slot);
+    const renderResults = q=>{
+      const el = document.getElementById('libpickResults-'+slot);
+      if(!q){ el.innerHTML=''; return; }
+      const matches = libraryMatches(q);
+      if(matches.length===0){ el.innerHTML = '<div class="picker-item">Ingen match.</div>'; return; }
+      el.innerHTML = matches.map(r=>{
+        const kcal = r.ingredients.reduce((s,i)=>s+macrosFor(i).kcal,0);
+        return `<div class="picker-item" onclick="pickFromLibrary('${slot}','${r.id}')"><span>${r.title}</span><span class="kc">${Math.round(kcal)} kcal</span></div>`;
+      }).join('');
+    };
+    renderResults(''); input.addEventListener('input', e=>renderResults(e.target.value));
+  } else if(mode==='paste'){
+    area.innerHTML = `
+      <label>Titel</label><input type="text" id="new-${slot}-title" placeholder="fx Suppe med kylling og grøntsager">
+      <label>Link (valgfri)</label><input type="url" id="new-${slot}-url" placeholder="https://…">
+      <label>Billede-URL (valgfri)</label><input type="url" id="new-${slot}-img" placeholder="https://…">
+      <label>Ingredienser (én pr. linje)</label>
+      <textarea id="new-${slot}-ing" placeholder="350 g kyllingeinderfilet
+1 spsk olie
+3 gulerødder"></textarea>
+      <label>Fremgangsmåde (ét trin pr. linje, valgfri)</label>
+      <textarea id="new-${slot}-steps"></textarea>
+      <div class="btn-row">
+        <button class="btn ghost" onclick="saveMeal('${slot}', false)">Tilføj ret</button>
+        <button class="btn primary" onclick="saveMeal('${slot}', true)">Tilføj og gem ret</button>
+      </div>
+      <p class="hint">"Tilføj ret" bruges kun i dag. "Tilføj og gem ret" lægger den også i Retter-biblioteket til genbrug.</p>
+    `;
+  } else if(mode==='build'){
+    area.innerHTML = `
+      <label>Titel</label><input type="text" id="build-${slot}-title" placeholder="fx Skyr med müsli">
+      <label>Billede-URL (valgfri)</label><input type="url" id="build-${slot}-img" placeholder="https://…">
+      <label>Ingredienser</label>
+      <div class="picker-search">
+        <input type="text" id="ingpick-${slot}" placeholder="Søg råvare, fx skyr…">
+        <div class="picker-results" id="ingpickResults-${slot}"></div>
+      </div>
+      <div id="pendingIngList-${slot}"></div>
+      <label>Fremgangsmåde (ét trin pr. linje, valgfri)</label>
+      <textarea id="build-${slot}-steps"></textarea>
+      <div class="btn-row">
+        <button class="btn ghost" onclick="saveMeal('${slot}', false)">Tilføj ret</button>
+        <button class="btn primary" onclick="saveMeal('${slot}', true)">Tilføj og gem ret</button>
+      </div>
+      <p class="hint">"Tilføj ret" bruges kun i dag. "Tilføj og gem ret" lægger den også i Retter-biblioteket til genbrug.</p>
+    `;
+    const ipInput = document.getElementById('ingpick-'+slot);
+    const renderIngResults = q=>{
+      q=(q||'').toLowerCase();
+      const el = document.getElementById('ingpickResults-'+slot);
+      if(!q){ el.innerHTML=''; return; }
+      const keys = Object.keys(state.kartotek).filter(k=>k.includes(q)).sort().slice(0,20);
+      el.innerHTML = keys.length ? keys.map(k=>`<div class="picker-item" onclick="addPendingIngredient('${slot}','${k.replace(/'/g,"\\'")}')"><span>${k}</span><span class="kc">${state.kartotek[k].kcal} kcal/100g</span></div>`).join('') : '<div class="picker-item">Ingen match.</div>';
+    };
+    ipInput.addEventListener('input', e=>renderIngResults(e.target.value));
+    renderPendingIngList(slot);
+  } else { area.innerHTML=''; }
+}
+
+let pendingIngredients = {};
+function addPendingIngredient(slot, key){
+  if(!pendingIngredients[slot]) pendingIngredients[slot]=[];
+  pendingIngredients[slot].push({ matchedKey:key, name:key, amount:100, unit:'g' });
+  const searchInput = document.getElementById('ingpick-'+slot);
+  if(searchInput) searchInput.value='';
+  const results = document.getElementById('ingpickResults-'+slot);
+  if(results) results.innerHTML='';
+  renderPendingIngList(slot);
+}
+function removePendingIngredient(slot, idx){ pendingIngredients[slot].splice(idx,1); renderPendingIngList(slot); }
+function updatePendingIngredient(slot, idx, field, value){
+  const item = pendingIngredients[slot][idx];
+  if(field==='amount') item.amount = parseFloat(value)||0; else item.unit = value;
+}
+function renderPendingIngList(slot){
+  const el = document.getElementById('pendingIngList-'+slot);
+  if(!el) return;
+  const list = pendingIngredients[slot]||[];
+  if(list.length===0){ el.innerHTML=''; return; }
+  const unitOptions = ['g','kg','dl','ml','spsk','tsk','stk','fed','bdt','ds'];
+  el.innerHTML = list.map((item,idx)=>`
+    <div style="display:flex; gap:6px; align-items:center; margin-top:6px;">
+      <span style="flex:1; font-size:13px;">${item.name}</span>
+      <input type="number" value="${item.amount}" style="width:64px;" onchange="updatePendingIngredient('${slot}',${idx},'amount',this.value)">
+      <select style="width:76px;" onchange="updatePendingIngredient('${slot}',${idx},'unit',this.value)">
+        ${unitOptions.map(u=>`<option value="${u}" ${u===item.unit?'selected':''}>${u}</option>`).join('')}
+      </select>
+      <button class="btn ghost small" onclick="removePendingIngredient('${slot}',${idx})">✕</button>
+    </div>`).join('');
+}
+
+function pickFromLibrary(slot, id){
+  const day = getDay(currentDay);
+  const r = state.recipeLibrary[id];
+  day.meals[slot] = { title:r.title, url:r.url, imageUrl:r.imageUrl||'', ingredients: JSON.parse(JSON.stringify(r.ingredients)), steps:[...r.steps] };
+  openSlot=null; addMode[slot]=null; saveState(); renderAll();
+}
+
+function buildMealFromForm(slot){
+  if(addMode[slot]==='build') return buildMealFromPicker(slot);
+  return buildMealFromPaste(slot);
+}
+function buildMealFromPaste(slot){
+  const title = document.getElementById(`new-${slot}-title`).value.trim() || 'Uden titel';
+  const url = document.getElementById(`new-${slot}-url`).value.trim();
+  const imageUrl = document.getElementById(`new-${slot}-img`).value.trim();
+  const ingText = document.getElementById(`new-${slot}-ing`).value;
+  const stepsText = document.getElementById(`new-${slot}-steps`).value;
+  const ingredients = ingText.split('\n').map(l=>l.trim()).filter(Boolean).map(parseIngredientLine).filter(Boolean);
+  const steps = stepsText.split('\n').map(s=>s.trim()).filter(Boolean);
+  return { title, url, imageUrl, ingredients, steps };
+}
+function buildMealFromPicker(slot){
+  const title = document.getElementById(`build-${slot}-title`).value.trim() || 'Uden titel';
+  const imageUrl = document.getElementById(`build-${slot}-img`).value.trim();
+  const stepsText = document.getElementById(`build-${slot}-steps`).value;
+  const ingredients = (pendingIngredients[slot]||[]).map(item=>({
+    raw: `${item.amount} ${item.unit} ${item.name}`, amount:item.amount, unit:item.unit, name:item.name,
+    matchedKey:item.matchedKey, grams: gramsFromUnit(item.matchedKey, item.amount, item.unit)
+  }));
+  const steps = stepsText.split('\n').map(s=>s.trim()).filter(Boolean);
+  pendingIngredients[slot] = [];
+  return { title, url:'', imageUrl, ingredients, steps };
+}
+function saveMeal(slot, alsoSaveToLibrary){
+  const meal = buildMealFromForm(slot);
+  getDay(currentDay).meals[slot] = meal;
+  if(alsoSaveToLibrary){
+    const id = 'r'+Date.now();
+    state.recipeLibrary[id] = { title:meal.title, url:meal.url, imageUrl:meal.imageUrl, ingredients: JSON.parse(JSON.stringify(meal.ingredients)), steps:[...meal.steps] };
+  }
+  openSlot=null; addMode[slot]=null;
+  saveState(); renderAll();
+}
+function deleteMeal(slot){ getDay(currentDay).meals[slot]=null; saveState(); renderAll(); }
+function saveMealToLibrary(slot){
+  const meal = getDay(currentDay).meals[slot];
+  if(!meal) return;
+  const id = 'r'+Date.now();
+  state.recipeLibrary[id] = { title:meal.title, url:meal.url||'', imageUrl:meal.imageUrl||'', ingredients: JSON.parse(JSON.stringify(meal.ingredients)), steps:[...(meal.steps||[])] };
+  saveState(); alert(`"${meal.title}" er gemt i Retter-kartoteket.`); renderAll();
+}
+
+/* day extra nutrition card */
+function renderDayExtra(){
+  const day = getDay(currentDay);
+  let satFat=0,fiber=0,salt=0,veg=0, any=false;
+  ['morgen','frokost','aften'].forEach(slot=>{
+    const meal = day.meals[slot]; if(!meal) return; any=true;
+    const t = scaledMealTotals(meal, day.target*(day.split[slot]/100));
+    satFat+=t.satFat; fiber+=t.fiber; salt+=t.salt; veg+=t.vegGrams;
+  });
+  const el = document.getElementById('dayExtraCard');
+  if(!any){ el.innerHTML=''; return; }
+  el.innerHTML = `
+    <h3 style="font-size:14px; margin-bottom:10px;">Ekstra næring i dag</h3>
+    <div style="display:flex; gap:18px; flex-wrap:wrap; font-size:12.5px; color:var(--ink-soft);">
+      <div><b style="color:var(--ink); display:block; font-size:17px;">${satFat.toFixed(1)}g</b>mættet fedt</div>
+      <div><b style="color:var(--ink); display:block; font-size:17px;">${fiber.toFixed(1)}g</b>fibre</div>
+      <div><b style="color:var(--ink); display:block; font-size:17px;">${salt.toFixed(2)}g</b>salt</div>
+      <div><b style="color:var(--ink); display:block; font-size:17px;">${Math.round(veg)}g</b>grøntsager</div>
+    </div>`;
+}
+
+/* ============================================================
+   RETTER (bibliotek)
+============================================================ */
+function escapeAttr(s){ return (s||'').replace(/"/g,'&quot;'); }
+let openLibraryId = null;
+let libraryEditIngredients = {};
+
+function renderLibrary(filter){
+  const el = document.getElementById('libraryList');
+  const items = libraryMatches(filter);
+  if(items.length===0){ el.innerHTML = `<div class="empty-state"><div class="em">📖</div>Ingen gemte retter endnu.<br>Brug "Tilføj og gem ret" på Dag-fanen for at se dem her.</div>`; return; }
+  el.innerHTML = items.map(r=>{
+    const kcal = r.ingredients.reduce((s,i)=>s+macrosFor(i).kcal,0);
+    const isOpen = openLibraryId===r.id;
+    return `<div class="card">
+      <div class="lib-card" style="cursor:pointer;" onclick="toggleLibraryEdit('${r.id}')">
+        <div class="meal-thumb">${r.imageUrl?`<img src="${r.imageUrl}">`:'🍽️'}</div>
+        <div class="meal-info"><h3>${r.title}</h3><div class="sub">${Math.round(kcal)} kcal (original mængde) · ${r.ingredients.length} ingredienser</div></div>
+        <button class="del" onclick="event.stopPropagation(); deleteLibraryEntry('${r.id}')">✕</button>
+      </div>
+      ${isOpen ? `
+      <div class="meal-detail">
+        <label>Titel</label><input type="text" id="libedit-title-${r.id}" value="${escapeAttr(r.title)}">
+        <label>Billede-URL</label><input type="url" id="libedit-img-${r.id}" value="${escapeAttr(r.imageUrl||'')}">
+        <label>Ingredienser</label>
+        <div class="picker-search">
+          <input type="text" id="libedit-ingpick-${r.id}" placeholder="Søg råvare…">
+          <div class="picker-results" id="libedit-ingpickResults-${r.id}"></div>
+        </div>
+        <div id="libedit-ingList-${r.id}"></div>
+        <label>Fremgangsmåde (ét trin pr. linje)</label>
+        <textarea id="libedit-steps-${r.id}">${(r.steps||[]).join('\n')}</textarea>
+        <div class="btn-row">
+          <button class="btn ghost" onclick="cancelLibraryEdit()">Annuller</button>
+          <button class="btn primary" onclick="saveLibraryEdit('${r.id}')">Gem ændringer</button>
+        </div>
+      </div>` : ''}
+    </div>`;
+  }).join('');
+
+  if(openLibraryId){
+    const id = openLibraryId;
+    renderLibEditIngList(id);
+    const ipInput = document.getElementById('libedit-ingpick-'+id);
+    if(ipInput){
+      ipInput.addEventListener('input', e=>{
+        const q=(e.target.value||'').toLowerCase();
+        const resEl = document.getElementById('libedit-ingpickResults-'+id);
+        if(!q){ resEl.innerHTML=''; return; }
+        const keys = Object.keys(state.kartotek).filter(k=>k.includes(q)).sort().slice(0,20);
+        resEl.innerHTML = keys.length ? keys.map(k=>`<div class="picker-item" onclick="addLibEditIngredient('${id}','${k.replace(/'/g,"\\'")}')"><span>${k}</span><span class="kc">${state.kartotek[k].kcal} kcal/100g</span></div>`).join('') : '<div class="picker-item">Ingen match.</div>';
+      });
+    }
+  }
+}
+
+function toggleLibraryEdit(id){
+  if(openLibraryId===id){ openLibraryId=null; }
+  else {
+    openLibraryId=id;
+    const r = state.recipeLibrary[id];
+    libraryEditIngredients[id] = r.ingredients.map(i=>({ matchedKey:i.matchedKey, name:i.matchedKey||i.name, amount:i.amount||100, unit:i.unit||'g' }));
+  }
+  renderLibrary(document.getElementById('libSearch').value);
+}
+function cancelLibraryEdit(){ openLibraryId=null; renderLibrary(document.getElementById('libSearch').value); }
+
+function addLibEditIngredient(id, key){
+  libraryEditIngredients[id].push({matchedKey:key, name:key, amount:100, unit:'g'});
+  const inp = document.getElementById('libedit-ingpick-'+id); if(inp) inp.value='';
+  const res = document.getElementById('libedit-ingpickResults-'+id); if(res) res.innerHTML='';
+  renderLibEditIngList(id);
+}
+function removeLibEditIngredient(id, idx){ libraryEditIngredients[id].splice(idx,1); renderLibEditIngList(id); }
+function updateLibEditIngredient(id, idx, field, value){
+  const item = libraryEditIngredients[id][idx];
+  if(field==='amount') item.amount=parseFloat(value)||0; else item.unit=value;
+}
+function renderLibEditIngList(id){
+  const el = document.getElementById('libedit-ingList-'+id);
+  if(!el) return;
+  const list = libraryEditIngredients[id]||[];
+  const unitOptions = ['g','kg','dl','ml','spsk','tsk','stk','fed','bdt','ds'];
+  el.innerHTML = list.map((item,idx)=>`
+    <div style="display:flex; gap:6px; align-items:center; margin-top:6px;">
+      <span style="flex:1; font-size:13px;">${item.name}</span>
+      <input type="number" value="${item.amount}" style="width:64px;" onchange="updateLibEditIngredient('${id}',${idx},'amount',this.value)">
+      <select style="width:76px;" onchange="updateLibEditIngredient('${id}',${idx},'unit',this.value)">
+        ${unitOptions.map(u=>`<option value="${u}" ${u===item.unit?'selected':''}>${u}</option>`).join('')}
+      </select>
+      <button class="btn ghost small" onclick="removeLibEditIngredient('${id}',${idx})">✕</button>
+    </div>`).join('');
+}
+function saveLibraryEdit(id){
+  const title = document.getElementById('libedit-title-'+id).value.trim() || 'Uden titel';
+  const imageUrl = document.getElementById('libedit-img-'+id).value.trim();
+  const stepsText = document.getElementById('libedit-steps-'+id).value;
+  const steps = stepsText.split('\n').map(s=>s.trim()).filter(Boolean);
+  const ingredients = (libraryEditIngredients[id]||[]).map(item=>({
+    raw: `${item.amount} ${item.unit} ${item.name}`, amount:item.amount, unit:item.unit, name:item.name,
+    matchedKey:item.matchedKey, grams: item.matchedKey ? gramsFromUnit(item.matchedKey, item.amount, item.unit) : 0
+  }));
+  state.recipeLibrary[id] = { ...state.recipeLibrary[id], title, imageUrl, ingredients, steps };
+  openLibraryId = null;
+  saveState(); renderAll();
+}
+function deleteLibraryEntry(id){ delete state.recipeLibrary[id]; if(openLibraryId===id) openLibraryId=null; saveState(); renderAll(); }
+document.getElementById('libSearch').addEventListener('input', e=>renderLibrary(e.target.value));
+
+/* ============================================================
+   INDKØBSLISTE
+============================================================ */
+const CAT_LABEL = {kød_fisk:'Kød & fisk', mejeri_æg:'Mejeri & æg', grønt:'Grønt & frugt', kornprodukter:'Kornprodukter', fedtstof:'Fedtstof', krydderi_andet:'Krydderi & andet', andet:'Andet / ikke matchet'};
+function renderShoppingList(){
+  const agg={};
+  for(const dayNum in state.days){
+    const day = state.days[dayNum];
+    ['morgen','frokost','aften'].forEach(slot=>{
+      const meal = day.meals[slot]; if(!meal) return;
+      const t = scaledMealTotals(meal, day.target*(day.split[slot]/100));
+      t.ingredients.forEach(i=>{
+        const key = i.matchedKey || ('ukendt:'+i.name);
+        if(!agg[key]) agg[key]={grams:0, category: i.matchedKey?state.kartotek[i.matchedKey].category:'andet', label: i.matchedKey||i.name};
+        agg[key].grams += i.scaledGrams;
+      });
+    });
+  }
+  const el = document.getElementById('shoppingList');
+  const allItems = Object.keys(agg).map(k=>({key:k,...agg[k]}));
+  if(allItems.length===0){ el.innerHTML = `<div class="empty-state"><div class="em">🛒</div>Ingen retter tilføjet endnu.</div>`; return; }
+
+  const sortMode = document.getElementById('shopSort').value;
+  const itemHtml = item=>{
+    const checked = !!state.shoppingChecked[item.key];
+    const amt = item.grams>=1000 ? (item.grams/1000).toFixed(2)+' kg' : Math.round(item.grams)+' g';
+    return `<div class="shop-item ${checked?'checked':''}"><input type="checkbox" id="chk-${item.key}" ${checked?'checked':''} onchange="toggleShopItem('${item.key.replace(/'/g,"\\'")}')"><label for="chk-${item.key}">${item.label}</label><span class="amt">${amt}</span></div>`;
+  };
+
+  let html='';
+  if(sortMode==='alfabetisk'){
+    allItems.sort((a,b)=>a.label.localeCompare(b.label));
+    html = allItems.map(itemHtml).join('');
+  } else if(sortMode==='mængde'){
+    allItems.sort((a,b)=>b.grams-a.grams);
+    html = allItems.map(itemHtml).join('');
+  } else {
+    const groups={};
+    allItems.forEach(item=>{ (groups[item.category]=groups[item.category]||[]).push(item); });
+    const order=['kød_fisk','mejeri_æg','grønt','kornprodukter','fedtstof','krydderi_andet','andet'];
+    order.forEach(cat=>{
+      if(!groups[cat]) return;
+      html+=`<div class="shop-group"><h4>${CAT_LABEL[cat]}</h4>`;
+      html+=groups[cat].sort((a,b)=>a.label.localeCompare(b.label)).map(itemHtml).join('');
+      html+=`</div>`;
+    });
+  }
+  el.innerHTML = html;
+}
+function toggleShopItem(key){ state.shoppingChecked[key]=!state.shoppingChecked[key]; saveState(); renderShoppingList(); }
+
+/* ============================================================
+   RÅVAREKARTOTEK
+============================================================ */
+function toggleManualAdd(){
+  const form = document.getElementById('manualAddForm');
+  const btn = document.getElementById('toggleManualAddBtn');
+  const nowHidden = form.classList.toggle('hidden');
+  btn.textContent = nowHidden ? '+ Tilføj råvare manuelt' : '– Skjul tilføj-råvare';
+}
+let showAllKartotek = false;
+function toggleShowAllKartotek(){ showAllKartotek = true; renderKartotek(document.getElementById('kartotekSearch').value); }
+
+function renderKartotek(filter){
+  filter=(filter||'').toLowerCase();
+  const wrap = document.getElementById('kartotekListWrap');
+  const hint = document.getElementById('kartotekEmptyHint');
+  const total = Object.keys(state.kartotek).length;
+
+  if(!filter && !showAllKartotek){
+    wrap.classList.add('hidden');
+    hint.innerHTML = `<div class="em">🔍</div>Søg efter en råvare ovenfor for at se den.<br><button class="btn ghost small" style="margin-top:10px;" onclick="toggleShowAllKartotek()">Vis alle ${total} råvarer</button>`;
+    return;
+  }
+  wrap.classList.remove('hidden');
+  hint.innerHTML = '';
+
+  const el = document.getElementById('kartotekList');
+  const keys = Object.keys(state.kartotek).filter(k=>k.includes(filter)).sort();
+  const srcLabel = s => s==='frida' ? 'frida' : (s==='openfoodfacts' ? 'off' : 'bruger');
+  const srcClass = s => s==='frida' ? 'frida' : (s==='openfoodfacts' ? 'off' : 'user');
+  el.innerHTML = keys.map(k=>{
+    const e = state.kartotek[k];
+    return `<div class="kart-row">
+      <div>${k} <span class="src ${srcClass(e.source)}">${srcLabel(e.source)}</span></div>
+      <div><input type="number" value="${e.kcal}" onchange="editKartotek('${k}','kcal',this.value)"></div>
+      <div><input type="number" value="${e.protein}" onchange="editKartotek('${k}','protein',this.value)"></div>
+      <div><input type="number" value="${e.fat}" onchange="editKartotek('${k}','fat',this.value)"></div>
+      <div><input type="number" value="${e.satFat||0}" onchange="editKartotek('${k}','satFat',this.value)"></div>
+      <div><input type="number" value="${e.carb}" onchange="editKartotek('${k}','carb',this.value)"></div>
+      <div><input type="number" value="${e.fiber||0}" onchange="editKartotek('${k}','fiber',this.value)"></div>
+      <div><input type="number" value="${e.salt||0}" onchange="editKartotek('${k}','salt',this.value)"></div>
+    </div>`;
+  }).join('');
+}
+function editKartotek(key,field,value){
+  state.kartotek[key][field]=parseFloat(value)||0;
+  state.kartotek[key].source='bruger';
+  saveState(); renderAll();
+}
+function addKartotekEntry(){
+  const name = document.getElementById('newName').value.trim().toLowerCase();
+  if(!name) return;
+  state.kartotek[name] = {
+    kcal: parseFloat(document.getElementById('newKcal').value)||0,
+    protein: parseFloat(document.getElementById('newProtein').value)||0,
+    fat: parseFloat(document.getElementById('newFat').value)||0,
+    satFat: parseFloat(document.getElementById('newSatFat').value)||0,
+    carb: parseFloat(document.getElementById('newCarb').value)||0,
+    fiber: parseFloat(document.getElementById('newFiber').value)||0,
+    salt: parseFloat(document.getElementById('newSalt').value)||0,
+    category: document.getElementById('newCat').value,
+    unitWeights:{}, source:'bruger'
+  };
+  ['newName','newKcal','newProtein','newFat','newSatFat','newCarb','newFiber','newSalt'].forEach(id=>document.getElementById(id).value='');
+  saveState(); renderAll();
+}
+document.getElementById('kartotekSearch').addEventListener('input', e=>renderKartotek(e.target.value));
+document.getElementById('shopSort').addEventListener('change', renderShoppingList);
+
+/* ============================================================
+   STREGKODESCANNING
+============================================================ */
+let scanStream=null, scanTimer=null, zxingLoaded=false;
+
+async function openScan(){
+  document.getElementById('scanModal').classList.remove('hidden');
+  document.getElementById('scanStatus').textContent='Starter kamera…';
+  try{
+    scanStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
+    const video = document.getElementById('scanVideo');
+    video.srcObject = scanStream;
+    if('BarcodeDetector' in window){
+      const detector = new BarcodeDetector({formats:['ean_13','ean_8','upc_a','upc_e','code_128']});
+      document.getElementById('scanStatus').textContent='Peg på stregkoden…';
+      scanTimer = setInterval(async ()=>{
+        try{
+          const codes = await detector.detect(video);
+          if(codes.length>0){ clearInterval(scanTimer); lookupBarcode(codes[0].rawValue); }
+        }catch(e){}
+      }, 400);
+    } else {
+      document.getElementById('scanStatus').textContent='Indlæser scanner…';
+      loadZXingAndScan(video);
+    }
+  } catch(e){
+    document.getElementById('scanStatus').textContent='Kunne ikke åbne kamera (ingen adgang, eller ikke understøttet her). Brug feltet nedenfor til at indtaste stregkoden manuelt.';
+  }
+}
+function loadZXingAndScan(video){
+  if(zxingLoaded && window.ZXingBrowser){ startZXing(video); return; }
+  const s = document.createElement('script');
+  s.src = 'https://unpkg.com/@zxing/browser@0.1.4/umd/index.min.js';
+  s.onload = ()=>{ zxingLoaded=true; startZXing(video); };
+  s.onerror = ()=>{ document.getElementById('scanStatus').textContent='Kunne ikke indlæse scanner-bibliotek — brug feltet nedenfor.'; };
+  document.head.appendChild(s);
+}
+function startZXing(video){
+  try{
+    const reader = new ZXingBrowser.BrowserMultiFormatReader();
+    reader.decodeFromVideoElement(video, (result, err)=>{
+      if(result){ reader.reset(); lookupBarcode(result.getText()); }
+    });
+    document.getElementById('scanStatus').textContent='Peg på stregkoden…';
+  }catch(e){ document.getElementById('scanStatus').textContent='Scanning ikke understøttet i denne browser — brug feltet nedenfor.'; }
+}
+function closeScan(){
+  document.getElementById('scanModal').classList.add('hidden');
+  if(scanTimer) clearInterval(scanTimer);
+  if(scanStream){ scanStream.getTracks().forEach(t=>t.stop()); scanStream=null; }
+}
+async function lookupBarcode(code){
+  code = (code||'').trim();
+  if(!code) return;
+  document.getElementById('scanStatus').textContent='Slår '+code+' op…';
+  try{
+    const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(code)}.json`);
+    const data = await res.json();
+    if(data.status!==1){ document.getElementById('scanStatus').textContent='Produkt ikke fundet i Open Food Facts. Prøv en anden kode, eller tilføj manuelt.'; return; }
+    const p = data.product;
+    const n = p.nutriments || {};
+    const name = (p.product_name || p.generic_name || ('produkt '+code)).toLowerCase().trim();
+    state.kartotek[name] = {
+      kcal: n['energy-kcal_100g']||0, protein: n['proteins_100g']||0, fat: n['fat_100g']||0,
+      carb: n['carbohydrates_100g']||0, satFat: n['saturated-fat_100g']||0,
+      fiber: n['fiber_100g']||0, salt: n['salt_100g']||0,
+      category:'krydderi_andet', unitWeights:{}, source:'openfoodfacts'
+    };
+    saveState(); closeScan(); renderAll();
+    alert(`"${name}" er tilføjet til råvarekartoteket (Open Food Facts). Ret evt. kategori på Råvarer-fanen.`);
+  }catch(e){
+    document.getElementById('scanStatus').textContent='Fejl ved opslag — tjek internetforbindelsen og prøv igen.';
+  }
+}
+
+/* ============================================================
+   TABS + MASTER RENDER
+============================================================ */
+document.querySelectorAll('nav.bottomnav button').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('nav.bottomnav button').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-'+btn.dataset.tab).classList.add('active');
+  });
+});
+function renderAll(){
+  renderDayPicker(); renderHero(); renderMeals(); renderDayExtra();
+  renderLibrary(document.getElementById('libSearch').value);
+  renderShoppingList();
+  renderKartotek(document.getElementById('kartotekSearch').value);
+}
+renderAll();
+
+async function loadFullFridaData(){
+  try{
+    const res = await fetch('frida-data.json');
+    if(!res.ok) return;
+    const data = await res.json();
+    let added = 0;
+    for(const key in data){
+      if(!state.kartotek[key]){
+        state.kartotek[key] = data[key];
+        added++;
+      }
+    }
+    if(added>0){ saveState(); renderAll(); }
+  }catch(e){ /* offline, lokal fil, eller frida-data.json mangler — appen virker fint med det indbyggede sæt alligevel */ }
+}
+loadFullFridaData();
+
+if('serviceWorker' in navigator && (location.protocol==='https:' || location.hostname==='localhost')){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('service-worker.js').catch(()=>{ /* stille fejl, offline er en bonus, ikke et krav */ });
+  });
+}
+
+</script>
+</body>
+</html>
