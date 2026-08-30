@@ -157,6 +157,10 @@
 
   <div class="daypicker" id="daypicker"></div>
   <div class="weeklyveg" id="weeklyVeg"></div>
+  <div class="btn-row" style="margin:0 0 4px;">
+    <button class="btn ghost small" onclick="exportWeekPlan()" style="background:rgba(255,255,255,.55); color:#16321f;">⬇ Eksportér ugeplan</button>
+    <label class="btn ghost small" style="cursor:pointer; background:rgba(255,255,255,.55); color:#16321f;">⬆ Importér ugeplan<input type="file" accept=".json" style="display:none;" onchange="importWeekPlanFile(this)"></label>
+  </div>
 
   <div class="ring-row">
     <div class="ring" id="ring">
@@ -189,12 +193,20 @@
 
   <section id="tab-retter" class="panel">
     <div class="section-title">Retter</div>
+    <div class="btn-row" style="margin-top:0;">
+      <button class="btn ghost small" onclick="exportRecipes()">⬇ Eksportér retter</button>
+      <label class="btn ghost small" style="cursor:pointer;">⬆ Importér retter<input type="file" accept=".json" style="display:none;" onchange="importRecipesFile(this)"></label>
+    </div>
+    <p class="hint">Eksportér dine gemte retter som en fil, du kan sende til andre (fx din kæreste) — de kan importere den ind i deres egen app uden det overskriver deres eksisterende retter.</p>
     <input type="text" id="libSearch" placeholder="Søg i dine gemte retter…" style="margin-bottom:14px;">
     <div id="libraryList"></div>
   </section>
 
   <section id="tab-indkob" class="panel">
     <div class="section-title">Indkøbsliste</div>
+    <div class="btn-row" style="margin-top:0;">
+      <button class="btn primary small" onclick="exportShoppingListText()">⬇ Del / eksportér liste</button>
+    </div>
     <div class="card">
       <p class="hint" style="margin-top:0;">Summeret på tværs af alle dage. Klik for at afkrydse.</p>
       <label style="margin-top:0;">Sortering</label>
@@ -209,6 +221,12 @@
 
   <section id="tab-kartotek" class="panel">
     <div class="section-title">Råvarekartotek</div>
+
+    <div class="btn-row" style="margin-top:0;">
+      <button class="btn ghost small" onclick="exportIngredients()">⬇ Eksportér egne råvarer</button>
+      <label class="btn ghost small" style="cursor:pointer;">⬆ Importér råvarer<input type="file" accept=".json" style="display:none;" onchange="importIngredientsFile(this)"></label>
+    </div>
+    <p class="hint" style="margin-top:6px;">Eksportérer kun dine egne tilføjede/rettede råvarer og OFF-opslag (ikke hele Frida-listen). Import tilføjer nye råvarer uden at overskrive dem, du allerede har.</p>
 
     <div class="card">
       <h3 style="font-size:14px; margin-bottom:6px;">Din egen proxy til "Hent"-knappen</h3>
@@ -1320,6 +1338,132 @@ async function lookupBarcode(code){
     alert(`"${name}" er tilføjet til råvarekartoteket (Open Food Facts). Ret evt. kategori på Råvarer-fanen.`);
   }catch(e){
     document.getElementById('scanStatus').textContent='Fejl ved opslag — tjek internetforbindelsen og prøv igen.';
+  }
+}
+
+/* ============================================================
+   EKSPORT / IMPORT
+============================================================ */
+function downloadFile(filename, content, mime){
+  const blob = new Blob([content], {type:mime});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url), 1000);
+}
+
+function exportWeekPlan(){
+  downloadFile('madplan-ugeplan.json', JSON.stringify(state.days, null, 2), 'application/json');
+}
+function importWeekPlanFile(input){
+  const file = input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e=>{
+    let imported;
+    try{ imported = JSON.parse(e.target.result); }
+    catch(err){ alert('Kunne ikke læse filen — er det en gyldig eksporteret ugeplan-fil?'); input.value=''; return; }
+    const ok = confirm('Dette erstatter hele din nuværende ugeplan — alle 7 dages mål, fordeling og retter. Det kan ikke fortrydes. Fortsæt?');
+    if(!ok){ input.value=''; return; }
+    state.days = imported;
+    state.shoppingChecked = {};
+    currentDay = 1;
+    saveState(); renderAll();
+    alert('Ugeplanen er importeret.');
+    input.value = '';
+  };
+  reader.readAsText(file);
+}
+
+function exportRecipes(){
+  downloadFile('madplan-retter.json', JSON.stringify(state.recipeLibrary, null, 2), 'application/json');
+}
+function importRecipesFile(input){
+  const file = input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e=>{
+    try{
+      const imported = JSON.parse(e.target.result);
+      const existingTitles = new Set(Object.values(state.recipeLibrary).map(r=>(r.title||'').toLowerCase()));
+      let added=0, skipped=0;
+      for(const key in imported){
+        const r = imported[key];
+        if(!r || !r.title){ continue; }
+        if(existingTitles.has(r.title.toLowerCase())){ skipped++; continue; }
+        const id = 'r'+Date.now()+'_'+Math.random().toString(36).slice(2,7);
+        state.recipeLibrary[id] = r;
+        existingTitles.add(r.title.toLowerCase());
+        added++;
+      }
+      saveState(); renderAll();
+      alert(`Importeret: ${added} nye retter tilføjet. ${skipped} sprunget over (fandtes allerede med samme titel).`);
+    }catch(err){ alert('Kunne ikke læse filen — er det en gyldig eksporteret retter-fil?'); }
+    input.value = '';
+  };
+  reader.readAsText(file);
+}
+
+function exportIngredients(){
+  const custom = {};
+  for(const k in state.kartotek){ if(state.kartotek[k].source !== 'frida') custom[k] = state.kartotek[k]; }
+  downloadFile('madplan-raavarer.json', JSON.stringify(custom, null, 2), 'application/json');
+}
+function importIngredientsFile(input){
+  const file = input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e=>{
+    try{
+      const imported = JSON.parse(e.target.result);
+      let added=0, skipped=0;
+      for(const key in imported){
+        if(state.kartotek[key]){ skipped++; continue; }
+        state.kartotek[key] = imported[key];
+        added++;
+      }
+      saveState(); renderAll();
+      alert(`Importeret: ${added} nye råvarer tilføjet. ${skipped} sprunget over (fandtes allerede).`);
+    }catch(err){ alert('Kunne ikke læse filen — er det en gyldig eksporteret råvare-fil?'); }
+    input.value = '';
+  };
+  reader.readAsText(file);
+}
+
+function exportShoppingListText(){
+  const agg={};
+  for(const dayNum in state.days){
+    const day = state.days[dayNum];
+    ['morgen','frokost','aften','snack1','snack2'].forEach(slot=>{
+      const meal = day.meals[slot]; if(!meal) return;
+      const t = scaledMealTotals(meal, day.target*(day.split[slot]/100));
+      t.ingredients.forEach(i=>{
+        const key = i.matchedKey || ('ukendt:'+i.name);
+        if(!agg[key]) agg[key]={grams:0, category: i.matchedKey?state.kartotek[i.matchedKey].category:'andet', label: i.matchedKey||i.name};
+        agg[key].grams += i.scaledGrams;
+      });
+    });
+  }
+  const groups={};
+  Object.keys(agg).forEach(k=>{ const g=agg[k].category; (groups[g]=groups[g]||[]).push({key:k,...agg[k]}); });
+  const order=['kød_fisk','mejeri_æg','grønt','kornprodukter','fedtstof','krydderi_andet','andet'];
+  let text = 'Indkøbsliste — Madplan\n\n';
+  let any=false;
+  order.forEach(cat=>{
+    if(!groups[cat]) return; any=true;
+    text += CAT_LABEL[cat].toUpperCase()+'\n';
+    groups[cat].sort((a,b)=>a.label.localeCompare(b.label)).forEach(item=>{
+      const gramsText = item.grams>=1000 ? (item.grams/1000).toFixed(2)+' kg' : Math.round(item.grams)+' g';
+      text += '- '+item.label+': '+gramsText+'\n';
+    });
+    text += '\n';
+  });
+  if(!any){ alert('Indkøbslisten er tom — tilføj retter til en dag først.'); return; }
+  if(navigator.share){
+    navigator.share({title:'Indkøbsliste', text}).catch(()=>{ downloadFile('indkoebsliste.txt', text, 'text/plain'); });
+  } else {
+    downloadFile('indkoebsliste.txt', text, 'text/plain');
   }
 }
 
