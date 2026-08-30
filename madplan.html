@@ -170,7 +170,12 @@
 
   <div class="target-edit">
     <div><label style="color:#2E4A31; margin-bottom:2px;">Dagsmål</label><input type="number" id="dayTarget" step="10"></div>
+  </div>
+  <div class="target-edit" style="margin-top:8px;">
     <div class="split-inputs"><span>M</span><input type="number" id="splitMorgen"><span>F</span><input type="number" id="splitFrokost"><span>A</span><input type="number" id="splitAften"><span>%</span></div>
+  </div>
+  <div class="target-edit" style="margin-top:6px;">
+    <div class="split-inputs"><span>S1</span><input type="number" id="splitSnack1"><span>S2</span><input type="number" id="splitSnack2"><span>%</span></div>
   </div>
   <div class="hint" id="splitWarning" style="color:#2E4A31;"></div>
 </div>
@@ -352,6 +357,13 @@ function loadState(){
       if(!parsed.shoppingChecked) parsed.shoppingChecked = {};
       if(!parsed.recipeLibrary) parsed.recipeLibrary = {};
       if(!parsed.settings) parsed.settings = { workerUrl: '' };
+      for(const dayNum in parsed.days){
+        const d = parsed.days[dayNum];
+        if(d.split.snack1===undefined) d.split.snack1 = 0;
+        if(d.split.snack2===undefined) d.split.snack2 = 0;
+        if(d.meals.snack1===undefined) d.meals.snack1 = null;
+        if(d.meals.snack2===undefined) d.meals.snack2 = null;
+      }
       return parsed;
     }
   }catch(e){ console.warn('Kunne ikke læse gemt data.', e); }
@@ -362,7 +374,7 @@ function saveState(){
   catch(e){ console.warn('Kunne ikke gemme (localStorage utilgængelig i denne visning).', e); }
 }
 function getDay(n){
-  if(!state.days[n]) state.days[n] = { target:2000, split:{morgen:25,frokost:30,aften:45}, meals:{morgen:null,frokost:null,aften:null} };
+  if(!state.days[n]) state.days[n] = { target:2000, split:{morgen:20,frokost:25,aften:35,snack1:10,snack2:10}, meals:{morgen:null,frokost:null,aften:null,snack1:null,snack2:null} };
   return state.days[n];
 }
 let currentDay = 1;
@@ -445,8 +457,8 @@ function scaledMealTotals(meal, mealTarget){
     vegGrams: scaledIngs.reduce((s,i)=>s+(i.isVeg?i.scaledGrams:0),0),
   };
 }
-function mealLabel(k){ return {morgen:'Morgenmad',frokost:'Frokost',aften:'Aftensmad'}[k]; }
-function mealEmoji(k){ return {morgen:'🥣',frokost:'🥗',aften:'🍲'}[k]; }
+function mealLabel(k){ return {morgen:'Morgenmad',frokost:'Frokost',aften:'Aftensmad',snack1:'Snack 1',snack2:'Snack 2'}[k]; }
+function mealEmoji(k){ return {morgen:'🥣',frokost:'🥗',aften:'🍲',snack1:'🍎',snack2:'🥨'}[k]; }
 
 /* ============================================================
    HERO
@@ -457,12 +469,14 @@ function renderHero(){
   document.getElementById('splitMorgen').value = day.split.morgen;
   document.getElementById('splitFrokost').value = day.split.frokost;
   document.getElementById('splitAften').value = day.split.aften;
-  const sum = day.split.morgen+day.split.frokost+day.split.aften;
+  document.getElementById('splitSnack1').value = day.split.snack1;
+  document.getElementById('splitSnack2').value = day.split.snack2;
+  const sum = day.split.morgen+day.split.frokost+day.split.aften+day.split.snack1+day.split.snack2;
   const warn = document.getElementById('splitWarning');
   warn.textContent = sum===100 ? '' : `Fordelingen summer til ${sum}%, ikke 100%.`;
 
   let kcal=0,p=0,f=0,c=0;
-  ['morgen','frokost','aften'].forEach(slot=>{
+  ['morgen','frokost','aften','snack1','snack2'].forEach(slot=>{
     const meal = day.meals[slot];
     if(!meal) return;
     const t = scaledMealTotals(meal, day.target*(day.split[slot]/100));
@@ -484,7 +498,7 @@ function renderHero(){
   document.getElementById('weeklyVeg').textContent = '🥦 '+weeklyVeggieCount()+' forskellige grøntsager/frugter brugt i ugen';
 }
 document.getElementById('dayTarget').addEventListener('change', e=>{ getDay(currentDay).target=parseFloat(e.target.value)||0; saveState(); renderAll(); });
-['Morgen','Frokost','Aften'].forEach(k=>{
+['Morgen','Frokost','Aften','Snack1','Snack2'].forEach(k=>{
   document.getElementById('split'+k).addEventListener('change', e=>{ getDay(currentDay).split[k.toLowerCase()]=parseFloat(e.target.value)||0; saveState(); renderAll(); });
 });
 
@@ -492,7 +506,7 @@ function weeklyVeggieCount(){
   const set = new Set();
   for(const dayNum in state.days){
     const day = state.days[dayNum];
-    ['morgen','frokost','aften'].forEach(slot=>{
+    ['morgen','frokost','aften','snack1','snack2'].forEach(slot=>{
       const meal = day.meals[slot];
       if(!meal) return;
       meal.ingredients.forEach(i=>{ if(i.matchedKey && state.kartotek[i.matchedKey].category==='grønt') set.add(i.matchedKey); });
@@ -534,7 +548,7 @@ function renderMeals(){
   const container = document.getElementById('mealsContainer');
   container.innerHTML='';
 
-  ['morgen','frokost','aften'].forEach(slot=>{
+  ['morgen','frokost','aften','snack1','snack2'].forEach(slot=>{
     const meal = day.meals[slot];
     const mealTarget = day.target*(day.split[slot]/100);
     const card = document.createElement('div');
@@ -913,7 +927,7 @@ function saveMealToLibrary(slot){
 function renderDayExtra(){
   const day = getDay(currentDay);
   let satFat=0,fiber=0,salt=0,veg=0, any=false;
-  ['morgen','frokost','aften'].forEach(slot=>{
+  ['morgen','frokost','aften','snack1','snack2'].forEach(slot=>{
     const meal = day.meals[slot]; if(!meal) return; any=true;
     const t = scaledMealTotals(meal, day.target*(day.split[slot]/100));
     satFat+=t.satFat; fiber+=t.fiber; salt+=t.salt; veg+=t.vegGrams;
@@ -1047,7 +1061,7 @@ function renderShoppingList(){
   const agg={};
   for(const dayNum in state.days){
     const day = state.days[dayNum];
-    ['morgen','frokost','aften'].forEach(slot=>{
+    ['morgen','frokost','aften','snack1','snack2'].forEach(slot=>{
       const meal = day.meals[slot]; if(!meal) return;
       const t = scaledMealTotals(meal, day.target*(day.split[slot]/100));
       t.ingredients.forEach(i=>{
