@@ -118,7 +118,7 @@
   .shop-item .amt{font-size:12px; color:var(--ink-soft); font-weight:700;}
 
   .kart-scroll{overflow-x:auto;}
-  .kart-row{display:grid; grid-template-columns:1.4fr .6fr .6fr .6fr .6fr .6fr .6fr .6fr; gap:6px; align-items:center; padding:7px 4px; border-bottom:1px solid var(--line); font-size:11.5px; min-width:640px;}
+  .kart-row{display:grid; grid-template-columns:1.4fr .6fr .6fr .6fr .6fr .6fr .6fr .6fr .6fr; gap:6px; align-items:center; padding:7px 4px; border-bottom:1px solid var(--line); font-size:11.5px; min-width:720px;}
   .kart-row.headrow{font-size:9.5px; text-transform:uppercase; color:var(--ink-soft); font-weight:700; border-bottom:1.5px solid var(--ink);}
   .kart-row input{padding:5px 5px; font-size:11px; border-radius:8px;}
   .src{font-size:8.5px; font-weight:800; padding:2px 5px; border-radius:6px; white-space:nowrap;}
@@ -222,7 +222,7 @@
     <input type="text" id="kartotekSearch" placeholder="Søg råvare…" style="margin-bottom:12px;">
     <div id="kartotekListWrap">
       <div class="kart-scroll">
-        <div class="kart-row headrow"><div>Navn</div><div>Kcal</div><div>Protein</div><div>Fedt</div><div>Mæt.fedt</div><div>Kulh.</div><div>Fibre</div><div>Salt</div></div>
+        <div class="kart-row headrow"><div>Navn</div><div>Kcal</div><div>Protein</div><div>Fedt</div><div>Mæt.fedt</div><div>Kulh.</div><div>Fibre</div><div>Salt</div><div>g/stk</div></div>
         <div id="kartotekList"></div>
       </div>
     </div>
@@ -408,6 +408,26 @@ function gramsFromUnit(matchedKey, amount, unit){
   }
   return amount*(UNIT_ML[unit]||1)*density;
 }
+function amountFromGrams(matchedKey, grams, unit){
+  const entry = state.kartotek[matchedKey];
+  if(!entry) return grams;
+  const density = entry.category==='fedtstof' ? 0.92 : 1;
+  if(UNIT_COUNT.includes(unit)){
+    const uw = entry.unitWeights[unit];
+    const weight = uw!==undefined?uw:(unit==='stk'?100:(unit==='fed'?3:(unit==='bdt'?50:(unit==='ds'?400:250))));
+    return weight>0 ? grams/weight : 0;
+  }
+  const factor = (UNIT_ML[unit]||1)*density;
+  return factor>0 ? grams/factor : 0;
+}
+function formatScaledAmount(ing){
+  if(!ing.matchedKey) return '–';
+  if(UNIT_COUNT.includes(ing.unit)){
+    const count = amountFromGrams(ing.matchedKey, ing.scaledGrams, ing.unit);
+    return count.toFixed(1)+' '+ing.unit+' ('+Math.round(ing.scaledGrams)+' g)';
+  }
+  return Math.round(ing.scaledGrams)+' g';
+}
 function parseIngredientLine(line){
   let txt = normalizeFraction(line.trim());
   if(!txt) return null;
@@ -583,7 +603,7 @@ function renderMeals(){
       <tr class="${i.matchedKey?'':'unmatched'}">
         <td class="name">${i.name}${i.matchedKey?'':'<span class="tag-warn">ej matchet</span>'}</td>
         <td>${i.amount!==null?(i.amount+' '+(i.unit||'')):'–'}</td>
-        <td>${i.matchedKey?Math.round(i.scaledGrams)+' g':'–'}</td>
+        <td>${formatScaledAmount(i)}</td>
         <td>${Math.round(i.kcal)}</td>
         <td>${i.protein.toFixed(1)}</td>
         <td>${i.fat.toFixed(1)}</td>
@@ -852,7 +872,14 @@ function addPendingIngredient(slot, key){
 function removePendingIngredient(slot, idx){ pendingIngredients[slot].splice(idx,1); renderPendingIngList(slot); }
 function updatePendingIngredient(slot, idx, field, value){
   const item = pendingIngredients[slot][idx];
-  if(field==='amount') item.amount = parseFloat(value)||0; else item.unit = value;
+  if(field==='amount'){ item.amount = parseFloat(value)||0; }
+  else if(!item.matchedKey){ item.unit = value; }
+  else {
+    const grams = gramsFromUnit(item.matchedKey, item.amount, item.unit);
+    item.unit = value;
+    item.amount = Math.round(amountFromGrams(item.matchedKey, grams, value)*100)/100;
+    renderPendingIngList(slot);
+  }
 }
 function renderPendingIngList(slot){
   const el = document.getElementById('pendingIngList-'+slot);
@@ -1020,7 +1047,14 @@ function addLibEditIngredient(id, key){
 function removeLibEditIngredient(id, idx){ libraryEditIngredients[id].splice(idx,1); renderLibEditIngList(id); }
 function updateLibEditIngredient(id, idx, field, value){
   const item = libraryEditIngredients[id][idx];
-  if(field==='amount') item.amount=parseFloat(value)||0; else item.unit=value;
+  if(field==='amount'){ item.amount = parseFloat(value)||0; }
+  else if(!item.matchedKey){ item.unit = value; }
+  else {
+    const grams = gramsFromUnit(item.matchedKey, item.amount, item.unit);
+    item.unit = value;
+    item.amount = Math.round(amountFromGrams(item.matchedKey, grams, value)*100)/100;
+    renderLibEditIngList(id);
+  }
 }
 function renderLibEditIngList(id){
   const el = document.getElementById('libedit-ingList-'+id);
@@ -1145,12 +1179,22 @@ function renderKartotek(filter){
       <div><input type="number" value="${e.carb}" onchange="editKartotek('${k}','carb',this.value)"></div>
       <div><input type="number" value="${e.fiber||0}" onchange="editKartotek('${k}','fiber',this.value)"></div>
       <div><input type="number" value="${e.salt||0}" onchange="editKartotek('${k}','salt',this.value)"></div>
+      <div><input type="number" value="${e.unitWeights && e.unitWeights.stk!==undefined ? e.unitWeights.stk : ''}" placeholder="–" onchange="editUnitWeight('${k}','stk',this.value)"></div>
     </div>`;
   }).join('');
 }
 function editKartotek(key,field,value){
   state.kartotek[key][field]=parseFloat(value)||0;
   state.kartotek[key].source='bruger';
+  saveState(); renderAll();
+}
+function editUnitWeight(key, unit, value){
+  const entry = state.kartotek[key];
+  if(!entry.unitWeights) entry.unitWeights = {};
+  const v = parseFloat(value);
+  if(!v || v<=0){ delete entry.unitWeights[unit]; }
+  else { entry.unitWeights[unit] = v; }
+  entry.source = 'bruger';
   saveState(); renderAll();
 }
 function addKartotekEntry(){
@@ -1205,7 +1249,7 @@ async function openScan(){
 function loadZXingAndScan(video){
   if(zxingLoaded && window.ZXingBrowser){ startZXing(video); return; }
   const s = document.createElement('script');
-  s.src = 'https://unpkg.com/@zxing/browser@0.1.4/umd/index.min.js';
+  s.src = 'https://unpkg.com/@zxing/browser@latest/umd/zxing-browser.min.js';
   s.onload = ()=>{ zxingLoaded=true; startZXing(video); };
   s.onerror = ()=>{ document.getElementById('scanStatus').textContent='Kunne ikke indlæse scanner-bibliotek — brug feltet nedenfor.'; };
   document.head.appendChild(s);
