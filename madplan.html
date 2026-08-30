@@ -862,7 +862,7 @@ function renderPendingIngList(slot){
   const unitOptions = ['g','kg','dl','ml','spsk','tsk','stk','fed','bdt','ds'];
   el.innerHTML = list.map((item,idx)=>`
     <div style="display:flex; gap:6px; align-items:center; margin-top:6px;">
-      <span style="flex:1; font-size:13px;">${item.name}</span>
+      <span style="flex:1; font-size:13px; ${item.matchedKey?'':'color:var(--danger);'}">${item.name}${item.matchedKey?'':' <span class="tag-warn">ej matchet</span>'}</span>
       <input type="number" value="${item.amount}" style="width:64px;" onchange="updatePendingIngredient('${slot}',${idx},'amount',this.value)">
       <select style="width:76px;" onchange="updatePendingIngredient('${slot}',${idx},'unit',this.value)">
         ${unitOptions.map(u=>`<option value="${u}" ${u===item.unit?'selected':''}>${u}</option>`).join('')}
@@ -1029,7 +1029,7 @@ function renderLibEditIngList(id){
   const unitOptions = ['g','kg','dl','ml','spsk','tsk','stk','fed','bdt','ds'];
   el.innerHTML = list.map((item,idx)=>`
     <div style="display:flex; gap:6px; align-items:center; margin-top:6px;">
-      <span style="flex:1; font-size:13px;">${item.name}</span>
+      <span style="flex:1; font-size:13px; ${item.matchedKey?'':'color:var(--danger);'}">${item.name}${item.matchedKey?'':' <span class="tag-warn">ej matchet</span>'}</span>
       <input type="number" value="${item.amount}" style="width:64px;" onchange="updateLibEditIngredient('${id}',${idx},'amount',this.value)">
       <select style="width:76px;" onchange="updateLibEditIngredient('${id}',${idx},'unit',this.value)">
         ${unitOptions.map(u=>`<option value="${u}" ${u===item.unit?'selected':''}>${u}</option>`).join('')}
