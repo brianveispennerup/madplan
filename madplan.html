@@ -596,6 +596,76 @@ function renderMeals(){
   });
 }
 
+/* ============================================================
+   HENT OPSKRIFT FRA LINK (CORS-proxy + schema.org Recipe)
+============================================================ */
+const RECIPE_PROXIES = [
+  u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+  u => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(u)}`
+];
+
+function extractRecipeFromHtml(html){
+  const scriptRe = /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+  let m;
+  while((m = scriptRe.exec(html)) !== null){
+    let json;
+    try{ json = JSON.parse(m[1].trim()); }catch(e){ continue; }
+    const roots = Array.isArray(json) ? json : (json['@graph'] ? json['@graph'] : [json]);
+    for(const item of roots){
+      if(!item || !item['@type']) continue;
+      const types = Array.isArray(item['@type']) ? item['@type'] : [item['@type']];
+      if(!types.includes('Recipe')) continue;
+
+      const ingredients = item.recipeIngredient || item.ingredients || [];
+      let steps = [];
+      if(Array.isArray(item.recipeInstructions)){
+        steps = item.recipeInstructions.map(s => typeof s === 'string' ? s : (s.text || s.name || '')).filter(Boolean);
+      } else if(typeof item.recipeInstructions === 'string'){
+        steps = item.recipeInstructions.split(/\n+/).map(s=>s.trim()).filter(Boolean);
+      }
+      let image = '';
+      if(typeof item.image === 'string') image = item.image;
+      else if(Array.isArray(item.image)) image = typeof item.image[0]==='string' ? item.image[0] : (item.image[0]?.url||'');
+      else if(item.image && item.image.url) image = item.image.url;
+
+      if(ingredients.length > 0){
+        return { title: item.name || '', image, ingredients, steps };
+      }
+    }
+  }
+  return null;
+}
+
+async function fetchRecipeFromLink(slot){
+  const urlInput = document.getElementById(`new-${slot}-url`);
+  const statusEl = document.getElementById(`fetchStatus-${slot}`);
+  const url = urlInput.value.trim();
+  if(!url){ statusEl.textContent = 'Indsæt et link først.'; return; }
+  statusEl.textContent = 'Henter opskrift…';
+
+  let html = null;
+  for(const proxyFn of RECIPE_PROXIES){
+    try{
+      const res = await fetch(proxyFn(url));
+      if(res.ok){ html = await res.text(); break; }
+    }catch(e){ /* prøv næste proxy */ }
+  }
+  if(!html){ statusEl.textContent = 'Kunne ikke hente siden lige nu. Prøv igen om lidt, eller indsæt ingredienserne manuelt.'; return; }
+
+  const recipe = extractRecipeFromHtml(html);
+  if(!recipe){ statusEl.textContent = 'Fandt ingen struktureret opskrift på siden — indsæt ingredienserne manuelt herunder.'; return; }
+
+  const titleEl = document.getElementById(`new-${slot}-title`);
+  const imgEl = document.getElementById(`new-${slot}-img`);
+  const ingEl = document.getElementById(`new-${slot}-ing`);
+  const stepsEl = document.getElementById(`new-${slot}-steps`);
+  if(recipe.title && !titleEl.value) titleEl.value = recipe.title;
+  if(recipe.image && !imgEl.value) imgEl.value = recipe.image;
+  ingEl.value = recipe.ingredients.join('\n');
+  stepsEl.value = recipe.steps.join('\n');
+  statusEl.textContent = `Hentet: ${recipe.ingredients.length} ingredienser, ${recipe.steps.length} trin. Tjek og ret gerne, før du gemmer — automatisk hentning kan indeholde fejl.`;
+}
+
 function toggleSlot(slot){ openSlot = openSlot===slot ? null : slot; addMode[slot]=null; pendingIngredients[slot]=[]; renderAll(); }
 function setAddMode(slot, mode){ addMode[slot]=mode; if(mode==='build') pendingIngredients[slot]=[]; renderAddArea(slot); }
 
@@ -620,8 +690,13 @@ function renderAddArea(slot){
   } else if(mode==='paste'){
     area.innerHTML = `
       <label>Titel</label><input type="text" id="new-${slot}-title" placeholder="fx Suppe med kylling og grøntsager">
-      <label>Link (valgfri)</label><input type="url" id="new-${slot}-url" placeholder="https://…">
-      <label>Billede-URL (valgfri)</label><input type="url" id="new-${slot}-img" placeholder="https://…">
+      <label>Link</label>
+      <div style="display:flex; gap:8px;">
+        <input type="url" id="new-${slot}-url" placeholder="https://…" style="flex:1;">
+        <button class="btn ghost small" type="button" onclick="fetchRecipeFromLink('${slot}')">Hent</button>
+      </div>
+      <div class="hint" id="fetchStatus-${slot}"></div>
+      <label>Billede-URL (valgfri, udfyldes automatisk hvis muligt)</label><input type="url" id="new-${slot}-img" placeholder="https://…">
       <label>Ingredienser (én pr. linje)</label>
       <textarea id="new-${slot}-ing" placeholder="350 g kyllingeinderfilet
 1 spsk olie
@@ -632,7 +707,7 @@ function renderAddArea(slot){
         <button class="btn ghost" onclick="saveMeal('${slot}', false)">Tilføj ret</button>
         <button class="btn primary" onclick="saveMeal('${slot}', true)">Tilføj og gem ret</button>
       </div>
-      <p class="hint">"Tilføj ret" bruges kun i dag. "Tilføj og gem ret" lægger den også i Retter-biblioteket til genbrug.</p>
+      <p class="hint">"Hent" forsøger at udfylde felterne automatisk ud fra linket — tjek og ret altid resultatet, før du gemmer. Virker ikke for alle sider; indsæt manuelt hvis den ikke finder noget.</p>
     `;
   } else if(mode==='build'){
     area.innerHTML = `
