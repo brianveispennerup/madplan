@@ -658,6 +658,68 @@ function extractRecipeFromHtml(html){
   return null;
 }
 
+function decodeEntities(str){
+  const named = {amp:'&',lt:'<',gt:'>',quot:'"',apos:"'",nbsp:' ',aelig:'æ',AElig:'Æ',oslash:'ø',Oslash:'Ø',aring:'å',Aring:'Å',eacute:'é',egrave:'è',oacute:'ó',ndash:'–',mdash:'—',rsquo:'’',lsquo:'‘',frac12:'½',frac14:'¼',frac34:'¾'};
+  return str.replace(/&#(\d+);/g,(m,d)=>String.fromCharCode(d))
+            .replace(/&#x([0-9a-fA-F]+);/g,(m,h)=>String.fromCharCode(parseInt(h,16)))
+            .replace(/&(\w+);/g,(m,name)=> named[name] !== undefined ? named[name] : m);
+}
+function stripTags(str){
+  return decodeEntities(str.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim());
+}
+
+function findSectionStart(html, keywordPattern){
+  // Stil 1: en rigtig overskrift, der indeholder ordet (fx <h2>Sådan laver du broccolisuppen</h2>)
+  const headingRe = new RegExp(`<h[1-6][^>]*>(?:(?!</h[1-6]>)[\\s\\S])*?${keywordPattern}(?:(?!</h[1-6]>)[\\s\\S])*?</h[1-6]>`, 'i');
+  let m = headingRe.exec(html);
+  if(m) return m.index + m[0].length;
+  // Stil 2: almindelig tekst, hvor ordet står helt for sig selv i sit tag (fx <div>Ingredienser</div>)
+  const bareRe = new RegExp(`>\\s*${keywordPattern}\\s*<`, 'i');
+  m = bareRe.exec(html);
+  if(m) return m.index + m[0].length;
+  return -1;
+}
+
+function extractRecipeHeuristic(html){
+  const noScripts = html.replace(/<script[\s\S]*?<\/script>/gi,'').replace(/<style[\s\S]*?<\/style>/gi,'');
+
+  function firstListAfter(pos, windowSize){
+    if(pos === -1) return [];
+    const rest = noScripts.slice(pos, pos + (windowSize || 8000));
+    const listMatch = /<(ul|ol)[^>]*>([\s\S]*?)<\/\1>/i.exec(rest);
+    if(!listMatch) return [];
+    return [...listMatch[2].matchAll(/<li[^>]*>([\s\S]*?)<\/li>/gi)].map(m=>stripTags(m[1])).filter(Boolean);
+  }
+  function paragraphsAfter(pos, windowSize){
+    if(pos === -1) return [];
+    const rest = noScripts.slice(pos, pos + (windowSize || 6000));
+    return [...rest.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi)].map(m=>stripTags(m[1])).filter(s=>s.length>15);
+  }
+
+  const ingPos = findSectionStart(noScripts, 'Ingrediens\\w*');
+  let ingredients = firstListAfter(ingPos);
+
+  const stepPos = findSectionStart(noScripts, '(Fremgangsm[åa]de|S[åa]dan (g[øo]r|laver)|Tilberedning|Metode)');
+  let steps = firstListAfter(stepPos);
+  if(steps.length === 0) steps = paragraphsAfter(stepPos);
+
+  if(ingredients.length === 0) return null;
+
+  const titleMatch = /<h1[^>]*>([\s\S]*?)<\/h1>/i.exec(noScripts);
+  const title = titleMatch ? stripTags(titleMatch[1]) : '';
+  const imgMatch = /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i.exec(html)
+                 || /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i.exec(html);
+  const image = imgMatch ? imgMatch[1] : '';
+
+  return { title, image, ingredients, steps };
+}
+
+function extractOgImage(html){
+  const m = /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i.exec(html)
+         || /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i.exec(html);
+  return m ? m[1] : '';
+}
+
 async function fetchRecipeFromLink(slot){
   const urlInput = document.getElementById(`new-${slot}-url`);
   const statusEl = document.getElementById(`fetchStatus-${slot}`);
@@ -674,8 +736,9 @@ async function fetchRecipeFromLink(slot){
   }
   if(!html){ statusEl.textContent = 'Kunne ikke hente siden lige nu. Prøv igen om lidt, eller indsæt ingredienserne manuelt.'; return; }
 
-  const recipe = extractRecipeFromHtml(html);
-  if(!recipe){ statusEl.textContent = 'Fandt ingen struktureret opskrift på siden — indsæt ingredienserne manuelt herunder.'; return; }
+  const recipe = extractRecipeFromHtml(html) || extractRecipeHeuristic(html);
+  if(!recipe){ statusEl.textContent = 'Fandt ingen genkendelig opskrift på siden — indsæt ingredienserne manuelt herunder.'; return; }
+  if(!recipe.image){ recipe.image = extractOgImage(html); }
 
   const titleEl = document.getElementById(`new-${slot}-title`);
   const imgEl = document.getElementById(`new-${slot}-img`);
