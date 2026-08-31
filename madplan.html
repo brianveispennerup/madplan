@@ -140,9 +140,10 @@
   .empty-state{text-align:center; padding:40px 16px; color:var(--ink-soft);}
   .empty-state .em{font-size:34px; margin-bottom:8px;}
 
-  #scanModal{position:fixed; inset:0; background:rgba(10,14,11,.92); z-index:200; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:24px;}
+  #scanModal, #qrModal{position:fixed; inset:0; background:rgba(10,14,11,.92); z-index:200; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:24px;}
   #scanVideo{width:100%; max-width:380px; border-radius:16px; background:#000;}
-  #scanStatus{color:#fff; font-size:13px; margin-top:12px; text-align:center; max-width:320px;}
+  #qrCanvas{max-width:280px; border-radius:16px; background:#fff;}
+  #scanStatus, #qrStatus{color:#fff; font-size:13px; margin-top:12px; text-align:center; max-width:320px;}
   .scan-manual{display:flex; gap:8px; margin-top:16px;}
   .scan-manual input{width:180px;}
 </style>
@@ -158,8 +159,9 @@
   <div class="daypicker" id="daypicker"></div>
   <div class="weeklyveg" id="weeklyVeg"></div>
   <div class="btn-row" style="margin:0 0 4px;">
-    <button class="btn ghost small" onclick="exportWeekPlan()" style="background:rgba(255,255,255,.55); color:#16321f;">⬇ Eksportér ugeplan</button>
-    <label class="btn ghost small" style="cursor:pointer; background:rgba(255,255,255,.55); color:#16321f;">⬆ Importér ugeplan<input type="file" accept=".json" style="display:none;" onchange="importWeekPlanFile(this)"></label>
+    <button class="btn ghost small" onclick="exportWeekPlan()" style="background:rgba(255,255,255,.55); color:#16321f;">⬇ Eksportér</button>
+    <button class="btn ghost small" onclick="shareViaQR('ugeplan', state.days)" style="background:rgba(255,255,255,.55); color:#16321f;">📱 Del via QR</button>
+    <label class="btn ghost small" style="cursor:pointer; background:rgba(255,255,255,.55); color:#16321f;">⬆ Importér<input type="file" accept=".json" style="display:none;" onchange="importWeekPlanFile(this)"></label>
   </div>
 
   <div class="ring-row">
@@ -194,8 +196,9 @@
   <section id="tab-retter" class="panel">
     <div class="section-title">Retter</div>
     <div class="btn-row" style="margin-top:0;">
-      <button class="btn ghost small" onclick="exportRecipes()">⬇ Eksportér retter</button>
-      <label class="btn ghost small" style="cursor:pointer;">⬆ Importér retter<input type="file" accept=".json" style="display:none;" onchange="importRecipesFile(this)"></label>
+      <button class="btn ghost small" onclick="exportRecipes()">⬇ Eksportér</button>
+      <button class="btn ghost small" onclick="shareViaQR('retter', state.recipeLibrary)">📱 Del via QR</button>
+      <label class="btn ghost small" style="cursor:pointer;">⬆ Importér<input type="file" accept=".json" style="display:none;" onchange="importRecipesFile(this)"></label>
     </div>
     <p class="hint">Eksportér dine gemte retter som en fil, du kan sende til andre (fx din kæreste) — de kan importere den ind i deres egen app uden det overskriver deres eksisterende retter.</p>
     <input type="text" id="libSearch" placeholder="Søg i dine gemte retter…" style="margin-bottom:14px;">
@@ -205,7 +208,10 @@
   <section id="tab-indkob" class="panel">
     <div class="section-title">Indkøbsliste</div>
     <div class="btn-row" style="margin-top:0;">
-      <button class="btn primary small" onclick="exportShoppingListText()">⬇ Del / eksportér liste</button>
+      <button class="btn primary small" onclick="exportShoppingListText()">📤 Del (tekst)</button>
+      <button class="btn ghost small" onclick="exportShoppingListJSON()">⬇ Eksportér</button>
+      <button class="btn ghost small" onclick="shareViaQR('indkob', buildShoppingListData())">📱 Del via QR</button>
+      <label class="btn ghost small" style="cursor:pointer;">⬆ Importér<input type="file" accept=".json" style="display:none;" onchange="importShoppingListFile(this)"></label>
     </div>
     <div class="card">
       <p class="hint" style="margin-top:0;">Summeret på tværs af alle dage. Klik for at afkrydse.</p>
@@ -217,16 +223,33 @@
       </select>
       <div id="shoppingList" style="margin-top:10px;"></div>
     </div>
+    <div class="card" id="importedShoppingCard"></div>
   </section>
 
   <section id="tab-kartotek" class="panel">
     <div class="section-title">Råvarekartotek</div>
 
     <div class="btn-row" style="margin-top:0;">
-      <button class="btn ghost small" onclick="exportIngredients()">⬇ Eksportér egne råvarer</button>
-      <label class="btn ghost small" style="cursor:pointer;">⬆ Importér råvarer<input type="file" accept=".json" style="display:none;" onchange="importIngredientsFile(this)"></label>
+      <button class="btn ghost small" onclick="exportIngredients()">⬇ Eksportér</button>
+      <button class="btn ghost small" onclick="shareViaQR('raavarer', getCustomIngredients())">📱 Del via QR</button>
+      <label class="btn ghost small" style="cursor:pointer;">⬆ Importér<input type="file" accept=".json" style="display:none;" onchange="importIngredientsFile(this)"></label>
     </div>
     <p class="hint" style="margin-top:6px;">Eksportérer kun dine egne tilføjede/rettede råvarer og OFF-opslag (ikke hele Frida-listen). Import tilføjer nye råvarer uden at overskrive dem, du allerede har.</p>
+
+    <div class="card">
+      <h3 style="font-size:14px; margin-bottom:6px;">Synkronisering (samme data på flere enheder)</h3>
+      <p class="hint" style="margin-top:0;">Sæt en fælles kode på to enheder (eller del den med din kæreste), og brug "Gem til sky"/"Hent fra sky" til at holde ugeplan, retter og egne råvarer ens. Kun manuel — intet synker automatisk, du bestemmer selv hvornår.</p>
+      <div style="display:flex; gap:8px;">
+        <input type="text" id="syncCodeInput" placeholder="fx BRIAN23" style="flex:1;">
+        <button class="btn ghost small" onclick="generateSyncCode()">Generér</button>
+      </div>
+      <div class="btn-row">
+        <button class="btn ghost" onclick="saveSyncCode()">Gem kode</button>
+        <button class="btn primary" onclick="pushSync()">☁️ Gem til sky</button>
+        <button class="btn ghost" onclick="pullSync()">☁️ Hent fra sky</button>
+      </div>
+      <span class="hint" id="syncStatus"></span>
+    </div>
 
     <div class="card">
       <h3 style="font-size:14px; margin-bottom:6px;">Din egen proxy til "Hent"-knappen</h3>
@@ -289,6 +312,13 @@
     <button class="btn primary small" onclick="lookupBarcode(document.getElementById('manualBarcode').value)">Slå op</button>
   </div>
   <button class="btn ghost small" style="margin-top:14px;" onclick="closeScan()">Luk</button>
+</div>
+
+<div id="qrModal" class="hidden">
+  <canvas id="qrCanvas"></canvas>
+  <div id="qrStatus">Genererer QR-kode…</div>
+  <div id="qrUrlText" style="color:#cdd; font-size:10.5px; word-break:break-all; max-width:280px; text-align:center; margin-top:6px;"></div>
+  <button class="btn ghost small" style="margin-top:14px;" onclick="closeQrModal()">Luk</button>
 </div>
 
 <script>
@@ -375,7 +405,9 @@ function loadState(){
       if(!parsed.days) parsed.days = {};
       if(!parsed.shoppingChecked) parsed.shoppingChecked = {};
       if(!parsed.recipeLibrary) parsed.recipeLibrary = {};
-      if(!parsed.settings) parsed.settings = { workerUrl: '' };
+      if(!parsed.settings) parsed.settings = { workerUrl: '', syncCode: '' };
+      if(parsed.settings.syncCode===undefined) parsed.settings.syncCode = '';
+      if(!parsed.importedShoppingItems) parsed.importedShoppingItems = [];
       for(const dayNum in parsed.days){
         const d = parsed.days[dayNum];
         if(d.split.snack1===undefined) d.split.snack1 = 0;
@@ -386,7 +418,7 @@ function loadState(){
       return parsed;
     }
   }catch(e){ console.warn('Kunne ikke læse gemt data.', e); }
-  return { kartotek: defaultKartotek(), days: {}, shoppingChecked: {}, recipeLibrary: {}, settings: { workerUrl: '' } };
+  return { kartotek: defaultKartotek(), days: {}, shoppingChecked: {}, recipeLibrary: {}, settings: { workerUrl: '', syncCode: '' }, importedShoppingItems: [] };
 }
 function saveState(){
   try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
@@ -1341,6 +1373,247 @@ async function lookupBarcode(code){
   }
 }
 
+function buildShoppingListData(){
+  const agg={};
+  for(const dayNum in state.days){
+    const day = state.days[dayNum];
+    ['morgen','frokost','aften','snack1','snack2'].forEach(slot=>{
+      const meal = day.meals[slot]; if(!meal) return;
+      const t = scaledMealTotals(meal, day.target*(day.split[slot]/100));
+      t.ingredients.forEach(i=>{
+        const key = i.matchedKey || ('ukendt:'+i.name);
+        if(!agg[key]) agg[key]={grams:0, category: i.matchedKey?state.kartotek[i.matchedKey].category:'andet', label: i.matchedKey||i.name};
+        agg[key].grams += i.scaledGrams;
+      });
+    });
+  }
+  return Object.keys(agg).map(k=>({label:agg[k].label, grams:agg[k].grams, category:agg[k].category}));
+}
+
+function exportShoppingListJSON(){
+  const data = buildShoppingListData();
+  if(data.length===0){ alert('Indkøbslisten er tom — tilføj retter til en dag først.'); return; }
+  downloadFile('madplan-indkoebsliste.json', JSON.stringify(data, null, 2), 'application/json');
+}
+function importShoppingListFile(input){
+  const file = input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e=>{
+    try{
+      const imported = JSON.parse(e.target.result);
+      mergeImportedShoppingItems(imported);
+    }catch(err){ alert('Kunne ikke læse filen — er det en gyldig eksporteret indkøbsliste?'); }
+    input.value = '';
+  };
+  reader.readAsText(file);
+}
+function mergeImportedShoppingItems(items){
+  if(!Array.isArray(items)){ alert('Ugyldigt format.'); return; }
+  let added=0;
+  items.forEach(item=>{
+    if(!item || !item.label) return;
+    state.importedShoppingItems.push({
+      id: 'imp'+Date.now()+'_'+Math.random().toString(36).slice(2,7),
+      label: item.label, grams: item.grams||0, category: item.category||'andet', checked:false
+    });
+    added++;
+  });
+  saveState(); renderAll();
+  alert(`${added} varer fra en delt indkøbsliste er tilføjet nederst på Indkøb-fanen.`);
+}
+function toggleImportedShopItem(id){
+  const item = state.importedShoppingItems.find(i=>i.id===id);
+  if(item){ item.checked = !item.checked; saveState(); renderAll(); }
+}
+function removeImportedShopItem(id){
+  state.importedShoppingItems = state.importedShoppingItems.filter(i=>i.id!==id);
+  saveState(); renderAll();
+}
+function renderImportedShopping(){
+  const card = document.getElementById('importedShoppingCard');
+  if(!card) return;
+  if(state.importedShoppingItems.length===0){ card.innerHTML=''; return; }
+  card.innerHTML = `
+    <h3 style="font-size:14px; margin-bottom:8px;">🎁 Fra en delt liste</h3>
+    <p class="hint" style="margin-top:0;">Tilføjet via import/QR — ikke beregnet fra dine egne dage. Fjern med ✕, når du har handlet ind.</p>
+    ` + state.importedShoppingItems.map(item=>{
+      const amt = item.grams>=1000 ? (item.grams/1000).toFixed(2)+' kg' : Math.round(item.grams)+' g';
+      return `<div class="shop-item ${item.checked?'checked':''}">
+        <input type="checkbox" id="impchk-${item.id}" ${item.checked?'checked':''} onchange="toggleImportedShopItem('${item.id}')">
+        <label for="impchk-${item.id}">${item.label}</label>
+        <span class="amt">${amt}</span>
+        <button class="del" style="padding:2px 6px;" onclick="removeImportedShopItem('${item.id}')">✕</button>
+      </div>`;
+    }).join('');
+}
+
+function getCustomIngredients(){
+  const custom = {};
+  for(const k in state.kartotek){ if(state.kartotek[k].source !== 'frida') custom[k] = state.kartotek[k]; }
+  return custom;
+}
+
+/* ---- Synkronisering (manuel, via delt kode) ---- */
+function generateSyncCode(){
+  const code = Math.random().toString(36).slice(2,8).toUpperCase();
+  document.getElementById('syncCodeInput').value = code;
+}
+function saveSyncCode(){
+  state.settings.syncCode = document.getElementById('syncCodeInput').value.trim();
+  saveState();
+  document.getElementById('syncStatus').textContent = state.settings.syncCode ? ' Kode gemt: '+state.settings.syncCode : ' Kode fjernet.';
+}
+function requireSyncSetup(){
+  if(!state.settings.workerUrl){ alert('Sæt din Cloudflare Worker-adresse i feltet ovenfor først.'); return false; }
+  if(!state.settings.syncCode){ alert('Sæt en synkroniseringskode først (skriv en, eller tryk "Generér").'); return false; }
+  return true;
+}
+async function pushSync(){
+  if(!requireSyncSetup()) return;
+  const status = document.getElementById('syncStatus');
+  status.textContent = ' Gemmer til sky…';
+  const base = state.settings.workerUrl.trim().replace(/\/$/,'');
+  const payload = {
+    days: state.days,
+    recipeLibrary: state.recipeLibrary,
+    customIngredients: getCustomIngredients(),
+    shoppingChecked: state.shoppingChecked,
+    importedShoppingItems: state.importedShoppingItems,
+    savedAt: new Date().toISOString(),
+  };
+  try{
+    const res = await fetch(base+'/sync?code='+encodeURIComponent(state.settings.syncCode), {
+      method:'PUT', body: JSON.stringify(payload)
+    });
+    if(!res.ok) throw new Error(await res.text());
+    status.textContent = ' Gemt til sky ('+new Date().toLocaleTimeString('da-DK')+').';
+  }catch(err){
+    console.error('pushSync error', err);
+    status.textContent = ' Kunne ikke gemme: '+err.message;
+  }
+}
+async function pullSync(){
+  if(!requireSyncSetup()) return;
+  const status = document.getElementById('syncStatus');
+  status.textContent = ' Henter fra sky…';
+  const base = state.settings.workerUrl.trim().replace(/\/$/,'');
+  try{
+    const res = await fetch(base+'/sync?code='+encodeURIComponent(state.settings.syncCode));
+    if(!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    const ok = confirm('Hent fra sky? Dette erstatter din nuværende ugeplan og retter-bibliotek med versionen fra skyen (gemt '+(data.savedAt?new Date(data.savedAt).toLocaleString('da-DK'):'ukendt tidspunkt')+'). Dine egne råvarer beholdes/lægges sammen med skyens. Fortsæt?');
+    if(!ok){ status.textContent = ' Annulleret.'; return; }
+    state.days = data.days || {};
+    state.recipeLibrary = data.recipeLibrary || {};
+    state.shoppingChecked = data.shoppingChecked || {};
+    state.importedShoppingItems = data.importedShoppingItems || [];
+    let addedIng=0;
+    for(const key in (data.customIngredients||{})){
+      if(!state.kartotek[key]){ state.kartotek[key] = data.customIngredients[key]; addedIng++; }
+    }
+    currentDay = 1;
+    saveState(); renderAll();
+    status.textContent = ' Hentet fra sky. '+addedIng+' nye råvarer lagt til.';
+  }catch(err){
+    console.error('pullSync error', err);
+    status.textContent = ' Kunne ikke hente: '+err.message;
+  }
+}
+
+/* ---- Del via QR (upload til Worker + tegn QR-kode) ---- */
+let qrLibLoaded = false;
+async function shareViaQR(type, dataObj){
+  if(!state.settings.workerUrl){
+    alert('Sæt din Cloudflare Worker-adresse på Råvarer-fanen først — den bruges også til at dele data via QR.');
+    return;
+  }
+  const base = state.settings.workerUrl.trim().replace(/\/$/,'');
+  document.getElementById('qrModal').classList.remove('hidden');
+  document.getElementById('qrStatus').textContent = 'Uploader…';
+  document.getElementById('qrUrlText').textContent = '';
+  try{
+    const res = await fetch(base+'/transfer', { method:'POST', body: JSON.stringify(dataObj) });
+    if(!res.ok){ throw new Error('Upload fejlede ('+res.status+'): '+(await res.text())); }
+    const {id} = await res.json();
+    const importUrl = location.origin + location.pathname + '?import='+encodeURIComponent(type)+'&id='+encodeURIComponent(id);
+    document.getElementById('qrUrlText').textContent = importUrl;
+    document.getElementById('qrStatus').textContent = 'Genererer QR-kode…';
+    loadQrLibAndRender(importUrl);
+  }catch(err){
+    console.error('shareViaQR error', err);
+    document.getElementById('qrStatus').textContent = 'Kunne ikke oprette QR-kode: '+err.message;
+  }
+}
+function loadQrLibAndRender(text){
+  if(qrLibLoaded && window.QRCode){ renderQrToCanvas(text); return; }
+  const s = document.createElement('script');
+  s.src = 'https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js';
+  s.onload = ()=>{ qrLibLoaded=true; renderQrToCanvas(text); };
+  s.onerror = ()=>{ document.getElementById('qrStatus').textContent = 'Kunne ikke indlæse QR-bibliotek — prøv igen, eller send linket manuelt: '+text; };
+  document.head.appendChild(s);
+}
+function renderQrToCanvas(text){
+  const canvas = document.getElementById('qrCanvas');
+  QRCode.toCanvas(canvas, text, {width:260, margin:2}, function(error){
+    if(error){ console.error('QR render error', error); document.getElementById('qrStatus').textContent = 'Kunne ikke tegne QR-kode.'; }
+    else { document.getElementById('qrStatus').textContent = 'Scan med telefonens kamera. Gyldig i 10 minutter.'; }
+  });
+}
+function closeQrModal(){ document.getElementById('qrModal').classList.add('hidden'); }
+
+/* ---- Modtag delt data via link (?import=type&id=xxx i URL'en) ---- */
+async function checkImportFromUrl(){
+  const params = new URLSearchParams(location.search);
+  const importType = params.get('import');
+  const importId = params.get('id');
+  if(!importType || !importId) return;
+  history.replaceState({}, '', location.pathname);
+
+  if(!state.settings.workerUrl){
+    alert('Denne installation har ikke en Worker-adresse sat endnu — kan derfor ikke hente det delte data. Sæt den på Råvarer-fanen (samme adresse som afsenderen bruger), og få linket/QR-koden lavet igen.');
+    return;
+  }
+  const base = state.settings.workerUrl.trim().replace(/\/$/,'');
+  try{
+    const res = await fetch(base+'/transfer?id='+encodeURIComponent(importId));
+    if(!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+
+    if(importType==='ugeplan'){
+      if(!confirm('Importér ugeplan? Dette erstatter din nuværende plan (alle 7 dage).')) return;
+      state.days = data; state.shoppingChecked = {}; currentDay = 1;
+      saveState(); renderAll();
+      alert('Ugeplan importeret.');
+    } else if(importType==='retter'){
+      const existingTitles = new Set(Object.values(state.recipeLibrary).map(r=>(r.title||'').toLowerCase()));
+      let added=0, skipped=0;
+      for(const key in data){
+        const r = data[key];
+        if(!r || !r.title) continue;
+        if(existingTitles.has(r.title.toLowerCase())){ skipped++; continue; }
+        const id = 'r'+Date.now()+'_'+Math.random().toString(36).slice(2,7);
+        state.recipeLibrary[id] = r; existingTitles.add(r.title.toLowerCase()); added++;
+      }
+      saveState(); renderAll();
+      alert(`Importeret: ${added} nye retter tilføjet. ${skipped} sprunget over (fandtes allerede).`);
+    } else if(importType==='raavarer'){
+      let added=0, skipped=0;
+      for(const key in data){
+        if(state.kartotek[key]){ skipped++; continue; }
+        state.kartotek[key] = data[key]; added++;
+      }
+      saveState(); renderAll();
+      alert(`Importeret: ${added} nye råvarer tilføjet. ${skipped} sprunget over (fandtes allerede).`);
+    } else if(importType==='indkob'){
+      mergeImportedShoppingItems(data);
+    }
+  }catch(err){
+    console.error('checkImportFromUrl error', err);
+    alert('Kunne ikke hente det delte data: '+err.message);
+  }
+}
+
 /* ============================================================
    EKSPORT / IMPORT
 ============================================================ */
@@ -1482,11 +1755,15 @@ function renderAll(){
   renderDayPicker(); renderHero(); renderMeals(); renderDayExtra();
   renderLibrary(document.getElementById('libSearch').value);
   renderShoppingList();
+  renderImportedShopping();
   renderKartotek(document.getElementById('kartotekSearch').value);
   const wi = document.getElementById('workerUrlInput');
   if(wi && document.activeElement !== wi) wi.value = state.settings.workerUrl || '';
+  const si = document.getElementById('syncCodeInput');
+  if(si && document.activeElement !== si) si.value = state.settings.syncCode || '';
 }
 renderAll();
+checkImportFromUrl();
 
 async function loadFullFridaData(){
   try{

@@ -26,6 +26,18 @@ Et selvstændigt, afhængighedsfrit værktøj til at planlægge kalorielette dag
 
 Herefter bruger "Hent"-knappen din egen Worker først, med de delte proxyer som backup, hvis noget skulle gå galt.
 
+## Del data mellem enheder via QR-kode (fx PC → mobil)
+
+Ud over fil-eksport/import kan ugeplan, retter og råvarer også deles direkte som en QR-kode — praktisk hvis du bygger planen på PC'en og vil have den hurtigt over på telefonen. Det kræver ét ekstra trin i Cloudflare, oven på Worker-opsætningen ovenfor: en **KV-database** (et lille, midlertidigt nøgle-værdi-lager), som Worker'en bruger til at gemme dataen i op til 10 minutter, mens du scanner koden.
+
+1. I Cloudflare-dashboardet: venstre menu → **Storage & Databases** → **KV** → **Create namespace**.
+2. Giv den et navn, fx `madplan-transfer` → **Add**.
+3. Gå til din Worker (`madplan-proxy`) → **Settings** → **Bindings** → **Add binding** → **KV Namespace**.
+4. Variabelnavn: skriv præcis `TRANSFER_KV` (stort, med understreg — koden leder efter dette navn). Vælg det namespace, du lige oprettede, i dropdown'en.
+5. Gem/deploy.
+
+Herefter virker "📱 Del via QR"-knapperne: appen uploader data til din Worker, viser en QR-kode med et link, og når du scanner den med den anden enhed, henter den automatisk dataen og tilbyder at importere den (samme tilføj-ikke-erstat-regel som ved filimport, undtagen ugeplanen, som stadig erstatter). Koden er kun gyldig i 10 minutter og kan kun bruges én gang pr. upload.
+
 ## Sådan installerer du den som app på mobilen
 Værktøjet er sat op som en PWA (Progressive Web App), så den kan installeres som en rigtig app-genvej — med eget ikon og uden browserens adressefelt.
 
