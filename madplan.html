@@ -1280,41 +1280,52 @@ document.getElementById('shopSort').addEventListener('change', renderShoppingLis
 /* ============================================================
    STREGKODESCANNING
 ============================================================ */
-let scanStream=null, scanTimer=null, zxingLoaded=false;
+let scanStream=null, scanTimer=null, zxingLoaded=false, zxingControls=null, scanNoResultTimeout=null;
 
 async function openScan(){
   document.getElementById('scanModal').classList.remove('hidden');
   document.getElementById('scanStatus').textContent='Starter kamera…';
-  try{
-    scanStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
-    const video = document.getElementById('scanVideo');
-    video.srcObject = scanStream;
-    if('BarcodeDetector' in window){
+
+  if('BarcodeDetector' in window){
+    try{
+      scanStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
+      const video = document.getElementById('scanVideo');
+      video.srcObject = scanStream;
       const detector = new BarcodeDetector({formats:['ean_13','ean_8','upc_a','upc_e','code_128']});
       document.getElementById('scanStatus').textContent='Peg på stregkoden…';
+      armNoResultTimeout();
       scanTimer = setInterval(async ()=>{
         try{
           const codes = await detector.detect(video);
-          if(codes.length>0){ clearInterval(scanTimer); lookupBarcode(codes[0].rawValue); }
+          if(codes.length>0){ clearInterval(scanTimer); clearTimeout(scanNoResultTimeout); lookupBarcode(codes[0].rawValue); }
         }catch(e){}
       }, 400);
-    } else {
-      document.getElementById('scanStatus').textContent='Indlæser scanner…';
-      loadZXingAndScan(video);
+    } catch(e){
+      console.error('getUserMedia error', e);
+      document.getElementById('scanStatus').textContent='Kunne ikke åbne kamera: '+(e.message||e.name||'ukendt fejl')+'. Brug feltet nedenfor til at indtaste stregkoden manuelt.';
     }
-  } catch(e){
-    console.error('getUserMedia error', e);
-    document.getElementById('scanStatus').textContent='Kunne ikke åbne kamera: '+(e.message||e.name||'ukendt fejl')+'. Brug feltet nedenfor til at indtaste stregkoden manuelt.';
+  } else {
+    document.getElementById('scanStatus').textContent='Indlæser scanner…';
+    loadZXingAndScan();
   }
 }
-function loadZXingAndScan(video){
-  if(zxingLoaded && window.ZXingBrowser){ startZXing(video); return; }
+
+function armNoResultTimeout(){
+  clearTimeout(scanNoResultTimeout);
+  scanNoResultTimeout = setTimeout(()=>{
+    const el = document.getElementById('scanStatus');
+    if(el) el.textContent = 'Ingen stregkode fundet endnu — prøv at holde telefonen roligt, ca. 10-15 cm fra koden, i godt lys. Du kan altid indtaste den manuelt nedenfor i stedet.';
+  }, 15000);
+}
+
+function loadZXingAndScan(){
+  if(zxingLoaded && window.ZXingBrowser){ startZXing(); return; }
   const s = document.createElement('script');
   s.src = 'https://unpkg.com/@zxing/browser@latest';
   s.onload = ()=>{
     zxingLoaded=true;
-    if(window.ZXingBrowser){ startZXing(video); }
-    else { document.getElementById('scanStatus').textContent = 'Scanner-biblioteket loadede, men eksponerede ikke ZXingBrowser — kontakt Claude med denne besked.'; }
+    if(window.ZXingBrowser){ startZXing(); }
+    else { document.getElementById('scanStatus').textContent = 'Scanner-biblioteket loadede, men eksponerede ikke ZXingBrowser — brug feltet nedenfor.'; }
   };
   s.onerror = (e)=>{
     console.error('ZXing script load error', e);
@@ -1322,18 +1333,33 @@ function loadZXingAndScan(video){
   };
   document.head.appendChild(s);
 }
-function startZXing(video){
+
+async function startZXing(){
   try{
     const reader = new ZXingBrowser.BrowserMultiFormatReader();
-    reader.decodeFromVideoElement(video, (result, err)=>{
-      if(result){ reader.reset(); lookupBarcode(result.getText()); }
+    document.getElementById('scanStatus').textContent='Starter kamera…';
+    const controls = await reader.decodeFromVideoDevice(undefined, 'scanVideo', (result, err)=>{
+      if(result){
+        clearTimeout(scanNoResultTimeout);
+        if(zxingControls){ zxingControls.stop(); zxingControls=null; }
+        lookupBarcode(result.getText());
+      }
+      // "err" her er normalt bare "intet fundet i dette billede endnu" — sker konstant under scanning, ikke en fejl at vise
     });
+    zxingControls = controls;
     document.getElementById('scanStatus').textContent='Peg på stregkoden…';
-  }catch(e){ console.error('ZXing start error', e); document.getElementById('scanStatus').textContent='Scanning ikke understøttet: '+(e.message||e.name||'ukendt fejl')+' — brug feltet nedenfor.'; }
+    armNoResultTimeout();
+  }catch(e){
+    console.error('ZXing start error', e);
+    document.getElementById('scanStatus').textContent='Kunne ikke starte kamera til scanning: '+(e.message||e.name||'ukendt fejl')+' — brug feltet nedenfor.';
+  }
 }
+
 function closeScan(){
   document.getElementById('scanModal').classList.add('hidden');
   if(scanTimer) clearInterval(scanTimer);
+  clearTimeout(scanNoResultTimeout);
+  if(zxingControls){ zxingControls.stop(); zxingControls=null; }
   if(scanStream){ scanStream.getTracks().forEach(t=>t.stop()); scanStream=null; }
 }
 async function lookupBarcode(code){
