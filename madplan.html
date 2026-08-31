@@ -55,8 +55,8 @@
 
   .target-edit{display:flex; gap:8px; margin-top:14px; align-items:center; flex-wrap:wrap;}
   .target-edit input[type=number]{width:100px; padding:7px 9px; border-radius:10px; border:none; font-weight:700; font-size:16px; background:rgba(255,255,255,.65); color:#16321f;}
-  .target-edit .split-inputs{display:flex; gap:6px; align-items:center; font-size:11px; font-weight:700;}
-  .target-edit .split-inputs input{width:52px; padding:5px 6px; border-radius:8px; font-size:16px;}
+  .target-edit .split-inputs{display:flex; gap:5px; align-items:center; font-size:11px; font-weight:700; flex-wrap:wrap;}
+  .target-edit .split-inputs input{width:42px; padding:5px 4px; border-radius:8px; font-size:16px; text-align:center;}
 
   main{max-width:520px; margin:0 auto; padding:16px 16px 8px;}
   .card{background:var(--card); border-radius:18px; box-shadow:var(--shadow); padding:16px; margin-bottom:14px;}
@@ -78,7 +78,7 @@
   input[type=text],input[type=url],input[type=number],textarea,select{width:100%; padding:10px 12px; border:1.5px solid var(--line); border-radius:12px; font-family:'Manrope',sans-serif; font-size:16px; color:var(--ink); background:#fff;}
   textarea{min-height:80px; resize:vertical; font-family:ui-monospace,Menlo,monospace; font-size:16px;}
 
-  .btn{font-family:'Manrope',sans-serif; font-weight:700; font-size:13.5px; padding:10px 16px; border-radius:12px; border:none; cursor:pointer;}
+  .btn{font-family:'Manrope',sans-serif; font-weight:700; font-size:13.5px; padding:10px 16px; border-radius:12px; border:none; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; text-align:center; line-height:1.2;}
   .btn.primary{background:var(--accent); color:#fff;}
   .btn.ghost{background:var(--bg); color:var(--ink);}
   .btn.danger{background:#FBE7E6; color:var(--danger);}
@@ -158,11 +158,7 @@
 
   <div class="daypicker" id="daypicker"></div>
   <div class="weeklyveg" id="weeklyVeg"></div>
-  <div class="btn-row" style="margin:0 0 4px;">
-    <button class="btn ghost small" onclick="exportWeekPlan()" style="background:rgba(255,255,255,.55); color:#16321f;">⬇ Eksportér</button>
-    <button class="btn ghost small" onclick="shareViaQR('ugeplan', state.days)" style="background:rgba(255,255,255,.55); color:#16321f;">📱 Del via QR</button>
-    <label class="btn ghost small" style="cursor:pointer; background:rgba(255,255,255,.55); color:#16321f;">⬆ Importér<input type="file" accept=".json" style="display:none;" onchange="importWeekPlanFile(this)"></label>
-  </div>
+
 
   <div class="ring-row">
     <div class="ring" id="ring">
@@ -179,10 +175,14 @@
     <div><label style="color:#2E4A31; margin-bottom:2px;">Dagsmål</label><input type="number" id="dayTarget" step="10"></div>
   </div>
   <div class="target-edit" style="margin-top:8px;">
-    <div class="split-inputs"><span>M</span><input type="number" id="splitMorgen"><span>F</span><input type="number" id="splitFrokost"><span>A</span><input type="number" id="splitAften"><span>%</span></div>
-  </div>
-  <div class="target-edit" style="margin-top:6px;">
-    <div class="split-inputs"><span>S1</span><input type="number" id="splitSnack1"><span>S2</span><input type="number" id="splitSnack2"><span>%</span></div>
+    <div class="split-inputs">
+      <span>M</span><input type="number" id="splitMorgen">
+      <span>F</span><input type="number" id="splitFrokost">
+      <span>A</span><input type="number" id="splitAften">
+      <span>S1</span><input type="number" id="splitSnack1">
+      <span>S2</span><input type="number" id="splitSnack2">
+      <span>%</span>
+    </div>
   </div>
   <div class="hint" id="splitWarning" style="color:#2E4A31;"></div>
 </div>
@@ -196,25 +196,18 @@
   <section id="tab-retter" class="panel">
     <div class="section-title">Retter</div>
     <div class="btn-row" style="margin-top:0;">
-      <button class="btn ghost small" onclick="exportRecipes()">⬇ Eksportér</button>
-      <button class="btn ghost small" onclick="shareViaQR('retter', state.recipeLibrary)">📱 Del via QR</button>
-      <label class="btn ghost small" style="cursor:pointer;">⬆ Importér<input type="file" accept=".json" style="display:none;" onchange="importRecipesFile(this)"></label>
+      <button class="btn primary small" onclick="shareViaQR('retter', state.recipeLibrary)">📱 Del via QR</button>
     </div>
-    <p class="hint">Eksportér dine gemte retter som en fil, du kan sende til andre (fx din kæreste) — de kan importere den ind i deres egen app uden det overskriver deres eksisterende retter.</p>
-    <input type="text" id="libSearch" placeholder="Søg i dine gemte retter…" style="margin-bottom:14px;">
+    <input type="text" id="libSearch" placeholder="Søg i dine gemte retter…" style="margin:14px 0;">
     <div id="libraryList"></div>
   </section>
 
   <section id="tab-indkob" class="panel">
     <div class="section-title">Indkøbsliste</div>
     <div class="btn-row" style="margin-top:0;">
-      <button class="btn primary small" onclick="exportShoppingListText()">📤 Del (tekst)</button>
-      <button class="btn ghost small" onclick="exportShoppingListJSON()">⬇ Eksportér</button>
-      <button class="btn ghost small" onclick="shareViaQR('indkob', buildShoppingListData())">📱 Del via QR</button>
-      <label class="btn ghost small" style="cursor:pointer;">⬆ Importér<input type="file" accept=".json" style="display:none;" onchange="importShoppingListFile(this)"></label>
+      <button class="btn primary small" onclick="shareViaQR('indkob', buildShoppingListData())">📱 Del via QR</button>
     </div>
     <div class="card">
-      <p class="hint" style="margin-top:0;">Summeret på tværs af alle dage. Klik for at afkrydse.</p>
       <label style="margin-top:0;">Sortering</label>
       <select id="shopSort">
         <option value="kategori">Efter varetype (kategori)</option>
@@ -230,15 +223,11 @@
     <div class="section-title">Råvarekartotek</div>
 
     <div class="btn-row" style="margin-top:0;">
-      <button class="btn ghost small" onclick="exportIngredients()">⬇ Eksportér</button>
-      <button class="btn ghost small" onclick="shareViaQR('raavarer', getCustomIngredients())">📱 Del via QR</button>
-      <label class="btn ghost small" style="cursor:pointer;">⬆ Importér<input type="file" accept=".json" style="display:none;" onchange="importIngredientsFile(this)"></label>
+      <button class="btn primary small" onclick="shareViaQR('raavarer', getCustomIngredients())">📱 Del via QR</button>
     </div>
-    <p class="hint" style="margin-top:6px;">Eksportérer kun dine egne tilføjede/rettede råvarer og OFF-opslag (ikke hele Frida-listen). Import tilføjer nye råvarer uden at overskrive dem, du allerede har.</p>
 
     <div class="card">
       <h3 style="font-size:14px; margin-bottom:6px;">Synkronisering (samme data på flere enheder)</h3>
-      <p class="hint" style="margin-top:0;">Sæt en fælles kode på to enheder (eller del den med din kæreste), og brug "Gem til sky"/"Hent fra sky" til at holde ugeplan, retter og egne råvarer ens. Kun manuel — intet synker automatisk, du bestemmer selv hvornår.</p>
       <div style="display:flex; gap:8px;">
         <input type="text" id="syncCodeInput" placeholder="fx BRIAN23" style="flex:1;">
         <button class="btn ghost small" onclick="generateSyncCode()">Generér</button>
@@ -253,13 +242,11 @@
 
     <div class="card">
       <h3 style="font-size:14px; margin-bottom:6px;">Din egen proxy til "Hent"-knappen</h3>
-      <p class="hint" style="margin-top:0;">Gemmes kun lokalt i din browser — står aldrig i den offentlige kode på GitHub. Sæt adressen på din Cloudflare Worker her, så bruges den først frem for de delte, upålidelige proxyer.</p>
       <input type="url" id="workerUrlInput" placeholder="https://madplan-proxy.dit-navn.workers.dev">
       <button class="btn primary small" style="margin-top:8px;" onclick="saveWorkerUrl()">Gem</button>
       <span class="hint" id="workerUrlStatus"></span>
     </div>
 
-    <p class="hint">Kartoteket er bygget på Frida-data (DTU Fødevareinstituttet, v6.1) — reelle værdier, ikke tilnærmelser. Data for fødevarers næringsindhold er stillet til rådighed af DTU Fødevareinstituttet (frida.fooddata.dk). Du kan stadig rette eller tilføje egne råvarer, eller scanne en stregkode for produkter fra Open Food Facts.</p>
     <button class="btn primary block" style="margin:12px 0;" onclick="openScan()">📷 Scan stregkode</button>
     <input type="text" id="kartotekSearch" placeholder="Søg råvare…" style="margin-bottom:12px;">
     <div id="kartotekListWrap">
@@ -1448,6 +1435,13 @@ function renderImportedShopping(){
     }).join('');
 }
 
+function toggleWeekAdvanced(){
+  const row = document.getElementById('weekAdvancedRow');
+  const btn = document.getElementById('toggleWeekAdvancedBtn');
+  const nowHidden = row.classList.toggle('hidden');
+  btn.textContent = nowHidden ? 'Del/eksportér ugeplan ▾' : 'Skjul ▴';
+}
+
 function getCustomIngredients(){
   const custom = {};
   for(const k in state.kartotek){ if(state.kartotek[k].source !== 'frida') custom[k] = state.kartotek[k]; }
@@ -1548,9 +1542,13 @@ async function shareViaQR(type, dataObj){
 function loadQrLibAndRender(text){
   if(qrLibLoaded && window.QRCode){ renderQrToCanvas(text); return; }
   const s = document.createElement('script');
-  s.src = 'https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js';
-  s.onload = ()=>{ qrLibLoaded=true; renderQrToCanvas(text); };
-  s.onerror = ()=>{ document.getElementById('qrStatus').textContent = 'Kunne ikke indlæse QR-bibliotek — prøv igen, eller send linket manuelt: '+text; };
+  s.src = 'https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js';
+  s.onload = ()=>{
+    qrLibLoaded=true;
+    if(window.QRCode){ renderQrToCanvas(text); }
+    else { document.getElementById('qrStatus').textContent = 'Biblioteket loadede uden at eksponere QRCode — kontakt Claude med denne besked.'; }
+  };
+  s.onerror = (e)=>{ console.error('QR lib load error', e); document.getElementById('qrStatus').textContent = 'Kunne ikke indlæse QR-bibliotek — prøv igen, eller send linket manuelt: '+text; };
   document.head.appendChild(s);
 }
 function renderQrToCanvas(text){
