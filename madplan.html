@@ -140,7 +140,7 @@
   .empty-state{text-align:center; padding:40px 16px; color:var(--ink-soft);}
   .empty-state .em{font-size:34px; margin-bottom:8px;}
 
-  #scanModal, #qrModal{position:fixed; inset:0; background:rgba(10,14,11,.92); z-index:200; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:24px;}
+  #scanModal, #qrModal, #qrChoiceModal{position:fixed; inset:0; background:rgba(10,14,11,.92); z-index:200; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:24px;}
   #scanVideo{width:100%; max-width:380px; border-radius:16px; background:#000;}
   #qrCanvas{max-width:280px; border-radius:16px; background:#fff;}
   #scanStatus, #qrStatus{color:#fff; font-size:13px; margin-top:12px; text-align:center; max-width:320px;}
@@ -196,7 +196,7 @@
   <section id="tab-retter" class="panel">
     <div class="section-title">Retter</div>
     <div class="btn-row" style="margin-top:0;">
-      <button class="btn primary small" onclick="shareViaQR('retter', state.recipeLibrary)">📱 Del via QR</button>
+      <button class="btn primary small" onclick="qrShareOrScan('retter', ()=>state.recipeLibrary)">📱 Del via QR</button>
     </div>
     <input type="text" id="libSearch" placeholder="Søg i dine gemte retter…" style="margin:14px 0;">
     <div id="libraryList"></div>
@@ -205,7 +205,7 @@
   <section id="tab-indkob" class="panel">
     <div class="section-title">Indkøbsliste</div>
     <div class="btn-row" style="margin-top:0;">
-      <button class="btn primary small" onclick="shareViaQR('indkob', buildShoppingListData())">📱 Del via QR</button>
+      <button class="btn primary small" onclick="qrShareOrScan('indkob', buildShoppingListData)">📱 Del via QR</button>
     </div>
     <div class="card">
       <label style="margin-top:0;">Sortering</label>
@@ -223,7 +223,7 @@
     <div class="section-title">Råvarekartotek</div>
 
     <div class="btn-row" style="margin-top:0;">
-      <button class="btn primary small" onclick="shareViaQR('raavarer', getCustomIngredients())">📱 Del via QR</button>
+      <button class="btn primary small" onclick="qrShareOrScan('raavarer', getCustomIngredients)">📱 Del via QR</button>
     </div>
 
     <div class="card">
@@ -294,11 +294,22 @@
 <div id="scanModal" class="hidden">
   <video id="scanVideo" autoplay playsinline muted></video>
   <div id="scanStatus">Starter kamera…</div>
-  <div class="scan-manual">
+  <div class="scan-manual" id="scanManualRow">
     <input type="text" id="manualBarcode" placeholder="Indtast stregkode manuelt">
     <button class="btn primary small" onclick="lookupBarcode(document.getElementById('manualBarcode').value)">Slå op</button>
   </div>
   <button class="btn ghost small" style="margin-top:14px;" onclick="closeScan()">Luk</button>
+</div>
+
+<div id="qrChoiceModal" class="hidden">
+  <div style="background:#fff; border-radius:18px; padding:22px; max-width:300px; text-align:center;">
+    <h3 style="font-size:16px; margin-bottom:14px;">QR-deling</h3>
+    <div class="btn-row" style="margin-top:0;">
+      <button class="btn primary" onclick="qrChoiceShare()">📤 Del</button>
+      <button class="btn ghost" onclick="qrChoiceScan()">📷 Scan</button>
+    </div>
+    <button class="btn ghost small" style="margin-top:14px;" onclick="closeQrChoice()">Annullér</button>
+  </div>
 </div>
 
 <div id="qrModal" class="hidden">
@@ -3581,31 +3592,58 @@ document.getElementById('kartotekSearch').addEventListener('input', e=>renderKar
 document.getElementById('shopSort').addEventListener('change', renderShoppingList);
 
 /* ============================================================
-   STREGKODESCANNING
+   STREGKODESCANNING (produkter) + QR-SCANNING (delt data fra andre enheder)
 ============================================================ */
-let scanStream=null, scanTimer=null, zxingLoaded=false, zxingControls=null, scanNoResultTimeout=null;
+let scanStream=null, scanTimer=null, zxingLoaded=false, zxingControls=null, scanNoResultTimeout=null, scanMode='barcode';
 
-async function openScan(){
+function tryHandleSharedLink(text){
+  try{
+    const url = new URL(text);
+    const importType = url.searchParams.get('import');
+    const importId = url.searchParams.get('id');
+    if(importType && importId){
+      closeScan();
+      processImport(importType, importId);
+      return true;
+    }
+  }catch(e){ /* ikke et gyldigt link — ikke et delings-link */ }
+  return false;
+}
+function handleScanResult(text){
+  if(scanMode==='share'){
+    if(!tryHandleSharedLink(text)){
+      document.getElementById('scanStatus').textContent = 'Det scannede ligner ikke et Madplan-delings-link. Prøv igen.';
+    }
+    return;
+  }
+  lookupBarcode(text);
+}
+
+async function openScan(shareMode){
+  scanMode = shareMode ? 'share' : 'barcode';
   document.getElementById('scanModal').classList.remove('hidden');
   document.getElementById('scanStatus').textContent='Starter kamera…';
+  document.getElementById('scanManualRow').style.display = shareMode ? 'none' : '';
+
+  const formats = shareMode ? ['qr_code'] : ['ean_13','ean_8','upc_a','upc_e','code_128'];
 
   if('BarcodeDetector' in window){
     try{
       scanStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
       const video = document.getElementById('scanVideo');
       video.srcObject = scanStream;
-      const detector = new BarcodeDetector({formats:['ean_13','ean_8','upc_a','upc_e','code_128']});
-      document.getElementById('scanStatus').textContent='Peg på stregkoden…';
+      const detector = new BarcodeDetector({formats});
+      document.getElementById('scanStatus').textContent = shareMode ? 'Peg på QR-koden på den anden enhed…' : 'Peg på stregkoden…';
       armNoResultTimeout();
       scanTimer = setInterval(async ()=>{
         try{
           const codes = await detector.detect(video);
-          if(codes.length>0){ clearInterval(scanTimer); clearTimeout(scanNoResultTimeout); lookupBarcode(codes[0].rawValue); }
+          if(codes.length>0){ clearInterval(scanTimer); clearTimeout(scanNoResultTimeout); handleScanResult(codes[0].rawValue); }
         }catch(e){}
       }, 400);
     } catch(e){
       console.error('getUserMedia error', e);
-      document.getElementById('scanStatus').textContent='Kunne ikke åbne kamera: '+(e.message||e.name||'ukendt fejl')+'. Brug feltet nedenfor til at indtaste stregkoden manuelt.';
+      document.getElementById('scanStatus').textContent='Kunne ikke åbne kamera: '+(e.message||e.name||'ukendt fejl')+(shareMode?'':'. Brug feltet nedenfor til at indtaste stregkoden manuelt.');
     }
   } else {
     document.getElementById('scanStatus').textContent='Indlæser scanner…';
@@ -3617,7 +3655,7 @@ function armNoResultTimeout(){
   clearTimeout(scanNoResultTimeout);
   scanNoResultTimeout = setTimeout(()=>{
     const el = document.getElementById('scanStatus');
-    if(el) el.textContent = 'Ingen stregkode fundet endnu — prøv at holde telefonen roligt, ca. 10-15 cm fra koden, i godt lys. Du kan altid indtaste den manuelt nedenfor i stedet.';
+    if(el) el.textContent = (scanMode==='share' ? 'Ingen QR-kode fundet endnu' : 'Ingen stregkode fundet endnu') + ' — prøv at holde telefonen roligt, ca. 10-15 cm fra koden, i godt lys.' + (scanMode==='share' ? '' : ' Du kan altid indtaste den manuelt nedenfor i stedet.');
   }, 15000);
 }
 
@@ -3645,16 +3683,16 @@ async function startZXing(){
       if(result){
         clearTimeout(scanNoResultTimeout);
         if(zxingControls){ zxingControls.stop(); zxingControls=null; }
-        lookupBarcode(result.getText());
+        handleScanResult(result.getText());
       }
       // "err" her er normalt bare "intet fundet i dette billede endnu" — sker konstant under scanning, ikke en fejl at vise
     });
     zxingControls = controls;
-    document.getElementById('scanStatus').textContent='Peg på stregkoden…';
+    document.getElementById('scanStatus').textContent = scanMode==='share' ? 'Peg på QR-koden på den anden enhed…' : 'Peg på stregkoden…';
     armNoResultTimeout();
   }catch(e){
     console.error('ZXing start error', e);
-    document.getElementById('scanStatus').textContent='Kunne ikke starte kamera til scanning: '+(e.message||e.name||'ukendt fejl')+' — brug feltet nedenfor.';
+    document.getElementById('scanStatus').textContent='Kunne ikke starte kamera til scanning: '+(e.message||e.name||'ukendt fejl')+(scanMode==='share'?'':' — brug feltet nedenfor.');
   }
 }
 
@@ -3844,6 +3882,29 @@ async function pullSync(){
   }
 }
 
+/* ---- QR: fælles knap der spørger "del eller scan?" ---- */
+let qrChoicePending = null;
+function qrShareOrScan(type, dataProvider){
+  qrChoicePending = { type, dataProvider };
+  document.getElementById('qrChoiceModal').classList.remove('hidden');
+}
+function qrChoiceShare(){
+  document.getElementById('qrChoiceModal').classList.add('hidden');
+  if(!qrChoicePending) return;
+  const data = typeof qrChoicePending.dataProvider === 'function' ? qrChoicePending.dataProvider() : qrChoicePending.dataProvider;
+  shareViaQR(qrChoicePending.type, data);
+  qrChoicePending = null;
+}
+function qrChoiceScan(){
+  document.getElementById('qrChoiceModal').classList.add('hidden');
+  qrChoicePending = null;
+  openScan(true);
+}
+function closeQrChoice(){
+  document.getElementById('qrChoiceModal').classList.add('hidden');
+  qrChoicePending = null;
+}
+
 /* ---- Del via QR (upload til Worker + tegn QR-kode med indlejret bibliotek) ---- */
 async function shareViaQR(type, dataObj){
   if(!state.settings.workerUrl){
@@ -3903,7 +3964,10 @@ async function checkImportFromUrl(){
   const importId = params.get('id');
   if(!importType || !importId) return;
   history.replaceState({}, '', location.pathname);
+  processImport(importType, importId);
+}
 
+async function processImport(importType, importId){
   if(!state.settings.workerUrl){
     alert('Denne installation har ikke en Worker-adresse sat endnu — kan derfor ikke hente det delte data. Sæt den på Råvarer-fanen (samme adresse som afsenderen bruger), og få linket/QR-koden lavet igen.');
     return;
