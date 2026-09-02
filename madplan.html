@@ -141,7 +141,7 @@
   .empty-state .em{font-size:34px; margin-bottom:8px;}
 
   #scanModal, #qrModal, #qrChoiceModal{position:fixed; inset:0; background:rgba(10,14,11,.92); z-index:200; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:24px;}
-  #scanVideo{width:100%; max-width:380px; border-radius:16px; background:#000;}
+  #scanReader{width:100%; max-width:380px; border-radius:16px; overflow:hidden; background:#000;}
   #qrCanvas{max-width:280px; border-radius:16px; background:#fff;}
   #scanStatus, #qrStatus{color:#fff; font-size:13px; margin-top:12px; text-align:center; max-width:320px;}
   .scan-manual{display:flex; gap:8px; margin-top:16px;}
@@ -292,7 +292,7 @@
 </nav>
 
 <div id="scanModal" class="hidden">
-  <video id="scanVideo" autoplay playsinline muted></video>
+  <div id="scanReader"></div>
   <div id="scanStatus">Starter kamera…</div>
   <div class="scan-manual" id="scanManualRow">
     <input type="text" id="manualBarcode" placeholder="Indtast stregkode manuelt">
@@ -3594,7 +3594,7 @@ document.getElementById('shopSort').addEventListener('change', renderShoppingLis
 /* ============================================================
    STREGKODESCANNING (produkter) + QR-SCANNING (delt data fra andre enheder)
 ============================================================ */
-let scanStream=null, scanTimer=null, zxingLoaded=false, zxingControls=null, scanNoResultTimeout=null, scanMode='barcode';
+let scanNoResultTimeout=null, scanMode='barcode', html5QrLibLoaded=false, html5QrInstance=null;
 
 function tryHandleSharedLink(text){
   try{
@@ -3619,36 +3619,12 @@ function handleScanResult(text){
   lookupBarcode(text);
 }
 
-async function openScan(shareMode){
+function openScan(shareMode){
   scanMode = shareMode ? 'share' : 'barcode';
   document.getElementById('scanModal').classList.remove('hidden');
-  document.getElementById('scanStatus').textContent='Starter kamera…';
+  document.getElementById('scanStatus').textContent='Indlæser scanner…';
   document.getElementById('scanManualRow').style.display = shareMode ? 'none' : '';
-
-  const formats = shareMode ? ['qr_code'] : ['ean_13','ean_8','upc_a','upc_e','code_128'];
-
-  if('BarcodeDetector' in window){
-    try{
-      scanStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
-      const video = document.getElementById('scanVideo');
-      video.srcObject = scanStream;
-      const detector = new BarcodeDetector({formats});
-      document.getElementById('scanStatus').textContent = shareMode ? 'Peg på QR-koden på den anden enhed…' : 'Peg på stregkoden…';
-      armNoResultTimeout();
-      scanTimer = setInterval(async ()=>{
-        try{
-          const codes = await detector.detect(video);
-          if(codes.length>0){ clearInterval(scanTimer); clearTimeout(scanNoResultTimeout); handleScanResult(codes[0].rawValue); }
-        }catch(e){}
-      }, 400);
-    } catch(e){
-      console.error('getUserMedia error', e);
-      document.getElementById('scanStatus').textContent='Kunne ikke åbne kamera: '+(e.message||e.name||'ukendt fejl')+(shareMode?'':'. Brug feltet nedenfor til at indtaste stregkoden manuelt.');
-    }
-  } else {
-    document.getElementById('scanStatus').textContent='Indlæser scanner…';
-    loadZXingAndScan();
-  }
+  loadHtml5QrAndStart();
 }
 
 function armNoResultTimeout(){
@@ -3659,49 +3635,52 @@ function armNoResultTimeout(){
   }, 15000);
 }
 
-function loadZXingAndScan(){
-  if(zxingLoaded && window.ZXingBrowser){ startZXing(); return; }
+function loadHtml5QrAndStart(){
+  if(html5QrLibLoaded && window.Html5Qrcode){ startHtml5Qr(); return; }
   const s = document.createElement('script');
-  s.src = 'https://unpkg.com/@zxing/browser@latest';
+  s.src = 'https://unpkg.com/html5-qrcode@2.3.8';
   s.onload = ()=>{
-    zxingLoaded=true;
-    if(window.ZXingBrowser){ startZXing(); }
-    else { document.getElementById('scanStatus').textContent = 'Scanner-biblioteket loadede, men eksponerede ikke ZXingBrowser — brug feltet nedenfor.'; }
+    html5QrLibLoaded=true;
+    if(window.Html5Qrcode){ startHtml5Qr(); }
+    else { document.getElementById('scanStatus').textContent = 'Scanner-biblioteket loadede uden at eksponere Html5Qrcode — brug feltet nedenfor.'; }
   };
   s.onerror = (e)=>{
-    console.error('ZXing script load error', e);
-    document.getElementById('scanStatus').textContent='Kunne ikke indlæse scanner-bibliotek (netværksfejl) — brug feltet nedenfor.';
+    console.error('html5-qrcode load error', e);
+    document.getElementById('scanStatus').textContent='Kunne ikke indlæse scanner-bibliotek (netværksfejl)'+(scanMode==='barcode'?' — brug feltet nedenfor.':'.');
   };
   document.head.appendChild(s);
 }
 
-async function startZXing(){
+async function startHtml5Qr(){
   try{
-    const reader = new ZXingBrowser.BrowserMultiFormatReader();
+    const formats = scanMode==='share'
+      ? [Html5QrcodeSupportedFormats.QR_CODE]
+      : [Html5QrcodeSupportedFormats.EAN_13, Html5QrcodeSupportedFormats.EAN_8, Html5QrcodeSupportedFormats.UPC_A, Html5QrcodeSupportedFormats.UPC_E, Html5QrcodeSupportedFormats.CODE_128];
+    html5QrInstance = new Html5Qrcode('scanReader', { formatsToSupport: formats, verbose: false });
     document.getElementById('scanStatus').textContent='Starter kamera…';
-    const controls = await reader.decodeFromVideoDevice(undefined, 'scanVideo', (result, err)=>{
-      if(result){
+    await html5QrInstance.start(
+      { facingMode: 'environment' },
+      { fps: 10, qrbox: { width: 240, height: 240 } },
+      (decodedText)=>{
         clearTimeout(scanNoResultTimeout);
-        if(zxingControls){ zxingControls.stop(); zxingControls=null; }
-        handleScanResult(result.getText());
-      }
-      // "err" her er normalt bare "intet fundet i dette billede endnu" — sker konstant under scanning, ikke en fejl at vise
-    });
-    zxingControls = controls;
+        handleScanResult(decodedText);
+      },
+      ()=>{ /* fyres konstant mens intet er fundet endnu i det aktuelle billede — normalt, ikke en fejl */ }
+    );
     document.getElementById('scanStatus').textContent = scanMode==='share' ? 'Peg på QR-koden på den anden enhed…' : 'Peg på stregkoden…';
     armNoResultTimeout();
   }catch(e){
-    console.error('ZXing start error', e);
-    document.getElementById('scanStatus').textContent='Kunne ikke starte kamera til scanning: '+(e.message||e.name||'ukendt fejl')+(scanMode==='share'?'':' — brug feltet nedenfor.');
+    console.error('html5-qrcode start error', e);
+    document.getElementById('scanStatus').textContent='Kunne ikke starte kamera til scanning: '+(e.message||e||'ukendt fejl')+(scanMode==='barcode'?' — brug feltet nedenfor.':'.');
   }
 }
 
 function closeScan(){
   document.getElementById('scanModal').classList.add('hidden');
-  if(scanTimer) clearInterval(scanTimer);
   clearTimeout(scanNoResultTimeout);
-  if(zxingControls){ zxingControls.stop(); zxingControls=null; }
-  if(scanStream){ scanStream.getTracks().forEach(t=>t.stop()); scanStream=null; }
+  if(html5QrInstance){
+    html5QrInstance.stop().then(()=>{ try{ html5QrInstance.clear(); }catch(e){} html5QrInstance=null; }).catch(()=>{ html5QrInstance=null; });
+  }
 }
 async function lookupBarcode(code){
   code = (code||'').trim();
