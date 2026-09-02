@@ -301,6 +301,31 @@
   <button class="btn ghost small" style="margin-top:14px;" onclick="closeScan()">Luk</button>
 </div>
 
+<div id="syncPullChoiceModal" class="hidden">
+  <div style="background:#fff; border-radius:18px; padding:22px; max-width:320px; width:100%;">
+    <h3 style="font-size:16px; margin-bottom:6px;">Hvad vil du hente?</h3>
+    <p class="hint" id="syncPullInfo" style="margin-top:0;"></p>
+
+    <label style="display:flex; align-items:flex-start; gap:8px; margin-top:14px; cursor:pointer;">
+      <input type="checkbox" id="syncPullUgeplan" style="margin-top:3px;">
+      <span id="syncPullUgeplanLabel" style="font-size:13.5px; font-weight:400; color:var(--ink); margin:0;">Ugeplan</span>
+    </label>
+    <label style="display:flex; align-items:flex-start; gap:8px; margin-top:10px; cursor:pointer;">
+      <input type="checkbox" id="syncPullRetter" style="margin-top:3px;">
+      <span id="syncPullRetterLabel" style="font-size:13.5px; font-weight:400; color:var(--ink); margin:0;">Retter</span>
+    </label>
+    <label style="display:flex; align-items:flex-start; gap:8px; margin-top:10px; cursor:pointer;">
+      <input type="checkbox" id="syncPullRaavarer" style="margin-top:3px;">
+      <span id="syncPullRaavarerLabel" style="font-size:13.5px; font-weight:400; color:var(--ink); margin:0;">Egne råvarer</span>
+    </label>
+
+    <div class="btn-row">
+      <button class="btn ghost" onclick="closeSyncPullChoice()">Annullér</button>
+      <button class="btn primary" onclick="applySyncPullChoice()">Hent valgte</button>
+    </div>
+  </div>
+</div>
+
 <div id="qrChoiceModal" class="hidden">
   <div style="background:#fff; border-radius:18px; padding:22px; max-width:300px; text-align:center;">
     <h3 style="font-size:16px; margin-bottom:14px;">QR-deling</h3>
@@ -3839,6 +3864,7 @@ async function pushSync(){
     status.textContent = ' Kunne ikke gemme: '+err.message;
   }
 }
+let pendingSyncData = null;
 async function pullSync(){
   if(!requireSyncSetup()) return;
   const status = document.getElementById('syncStatus');
@@ -3847,24 +3873,71 @@ async function pullSync(){
   try{
     const res = await fetch(base+'/sync?code='+encodeURIComponent(state.settings.syncCode));
     if(!res.ok) throw new Error(await res.text());
-    const data = await res.json();
-    const ok = confirm('Hent fra sky? Dette erstatter din nuværende ugeplan og retter-bibliotek med versionen fra skyen (gemt '+(data.savedAt?new Date(data.savedAt).toLocaleString('da-DK'):'ukendt tidspunkt')+'). Dine egne råvarer beholdes/lægges sammen med skyens. Fortsæt?');
-    if(!ok){ status.textContent = ' Annulleret.'; return; }
-    state.days = data.days || {};
-    state.recipeLibrary = data.recipeLibrary || {};
-    state.shoppingChecked = data.shoppingChecked || {};
-    state.importedShoppingItems = data.importedShoppingItems || [];
-    let addedIng=0;
-    for(const key in (data.customIngredients||{})){
-      if(!state.kartotek[key]){ state.kartotek[key] = data.customIngredients[key]; addedIng++; }
-    }
-    currentDay = 1;
-    saveState(); renderAll();
-    status.textContent = ' Hentet fra sky. '+addedIng+' nye råvarer lagt til.';
+    pendingSyncData = await res.json();
+    status.textContent = ' Hentet — vælg hvad der skal tages med.';
+    showSyncPullChoice(pendingSyncData);
   }catch(err){
     console.error('pullSync error', err);
     status.textContent = ' Kunne ikke hente: '+err.message;
   }
+}
+
+function showSyncPullChoice(data){
+  const savedText = data.savedAt ? new Date(data.savedAt).toLocaleString('da-DK') : 'ukendt tidspunkt';
+  const recipeCount = Object.keys(data.recipeLibrary||{}).length;
+  const ingCount = Object.keys(data.customIngredients||{}).length;
+  const dayCount = Object.values(data.days||{}).filter(d=>Object.values(d.meals||{}).some(m=>m)).length;
+  document.getElementById('syncPullInfo').textContent = 'Gemt til sky: '+savedText;
+  document.getElementById('syncPullUgeplanLabel').textContent = `Ugeplan (erstatter din nuværende — ${dayCount} udfyldte dage)`;
+  document.getElementById('syncPullRetterLabel').textContent = `Retter (${recipeCount} stk. — tilføjes til dine egne)`;
+  document.getElementById('syncPullRaavarerLabel').textContent = `Egne råvarer (${ingCount} stk. — tilføjes til dine egne)`;
+  document.getElementById('syncPullUgeplan').checked = false;
+  document.getElementById('syncPullRetter').checked = true;
+  document.getElementById('syncPullRaavarer').checked = true;
+  document.getElementById('syncPullChoiceModal').classList.remove('hidden');
+}
+function closeSyncPullChoice(){
+  document.getElementById('syncPullChoiceModal').classList.add('hidden');
+  pendingSyncData = null;
+}
+function applySyncPullChoice(){
+  const data = pendingSyncData;
+  if(!data) return;
+  const wantUgeplan = document.getElementById('syncPullUgeplan').checked;
+  const wantRetter = document.getElementById('syncPullRetter').checked;
+  const wantRaavarer = document.getElementById('syncPullRaavarer').checked;
+  const status = document.getElementById('syncStatus');
+  let msgs = [];
+
+  if(wantUgeplan){
+    state.days = data.days || {};
+    state.shoppingChecked = data.shoppingChecked || {};
+    state.importedShoppingItems = data.importedShoppingItems || [];
+    currentDay = 1;
+    msgs.push('ugeplan erstattet');
+  }
+  if(wantRetter){
+    const existingTitles = new Set(Object.values(state.recipeLibrary).map(r=>(r.title||'').toLowerCase()));
+    let added=0;
+    for(const key in (data.recipeLibrary||{})){
+      const r = data.recipeLibrary[key];
+      if(!r || !r.title || existingTitles.has(r.title.toLowerCase())) continue;
+      const id = 'r'+Date.now()+'_'+Math.random().toString(36).slice(2,7);
+      state.recipeLibrary[id] = r; existingTitles.add(r.title.toLowerCase()); added++;
+    }
+    msgs.push(added+' nye retter');
+  }
+  if(wantRaavarer){
+    let added=0;
+    for(const key in (data.customIngredients||{})){
+      if(!state.kartotek[key]){ state.kartotek[key] = data.customIngredients[key]; added++; }
+    }
+    msgs.push(added+' nye råvarer');
+  }
+
+  closeSyncPullChoice();
+  saveState(); renderAll();
+  status.textContent = msgs.length ? ' Hentet: '+msgs.join(', ')+'.' : ' Intet valgt — ingenting hentet.';
 }
 
 /* ---- QR: fælles knap der spørger "del eller scan?" ---- */
