@@ -3619,7 +3619,9 @@ function handleScanResult(text){
   lookupBarcode(text);
 }
 
-function openScan(shareMode){
+async function openScan(shareMode){
+  closeQrModal();
+  await closeScan();
   scanMode = shareMode ? 'share' : 'barcode';
   document.getElementById('scanModal').classList.remove('hidden');
   document.getElementById('scanStatus').textContent='Indlæser scanner…';
@@ -3675,11 +3677,14 @@ async function startHtml5Qr(){
   }
 }
 
-function closeScan(){
+async function closeScan(){
   document.getElementById('scanModal').classList.add('hidden');
   clearTimeout(scanNoResultTimeout);
   if(html5QrInstance){
-    html5QrInstance.stop().then(()=>{ try{ html5QrInstance.clear(); }catch(e){} html5QrInstance=null; }).catch(()=>{ html5QrInstance=null; });
+    const instance = html5QrInstance;
+    html5QrInstance = null;
+    try{ await instance.stop(); }catch(e){}
+    try{ instance.clear(); }catch(e){}
   }
 }
 async function lookupBarcode(code){
@@ -3886,6 +3891,7 @@ function closeQrChoice(){
 
 /* ---- Del via QR (upload til Worker + tegn QR-kode med indlejret bibliotek) ---- */
 async function shareViaQR(type, dataObj){
+  closeScan();
   if(!state.settings.workerUrl){
     alert('Sæt din Cloudflare Worker-adresse på Råvarer-fanen først — den bruges også til at dele data via QR.');
     return;
