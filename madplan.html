@@ -142,7 +142,7 @@
 
   #scanModal, #qrModal, #qrChoiceModal{position:fixed; inset:0; background:rgba(10,14,11,.92); z-index:200; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:24px;}
   #scanReader{width:100%; max-width:380px; border-radius:16px; overflow:hidden; background:#000;}
-  #qrCanvas{max-width:280px; border-radius:16px; background:#fff;}
+  #qrCanvas{max-width:min(90vw, 440px); width:100%; border-radius:16px; background:#fff;}
   #scanStatus, #qrStatus{color:#fff; font-size:13px; margin-top:12px; text-align:center; max-width:320px;}
   .scan-manual{display:flex; gap:8px; margin-top:16px;}
   .scan-manual input{width:180px;}
@@ -3914,12 +3914,11 @@ async function shareViaQR(type, dataObj){
 }
 function renderQrToCanvas(text){
   try{
-    const qr = qrcode(0, 'M'); // typeNumber 0 = automatisk størrelse ud fra datamængden
+    const qr = qrcode(0, 'H'); // 'H' = højeste fejlkorrektion, mere robust mod skærm-fotografering
     qr.addData(text);
     qr.make();
     const count = qr.getModuleCount();
-    const targetSize = 260;
-    const cell = Math.max(2, Math.floor(targetSize / count));
+    const cell = 12; // store, tydelige moduler — mindre følsom over for moiré/pixel-interferens ved skærmoptagelse
     const actualSize = cell * count;
 
     const canvas = document.getElementById('qrCanvas');
