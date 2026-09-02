@@ -140,7 +140,7 @@
   .empty-state{text-align:center; padding:40px 16px; color:var(--ink-soft);}
   .empty-state .em{font-size:34px; margin-bottom:8px;}
 
-  #scanModal, #qrModal, #qrChoiceModal{position:fixed; inset:0; background:rgba(10,14,11,.92); z-index:200; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:24px;}
+  #scanModal, #qrModal, #qrChoiceModal, #syncPullChoiceModal{position:fixed; inset:0; background:rgba(10,14,11,.92); z-index:200; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:24px;}
   #scanReader{width:100%; max-width:380px; border-radius:16px; overflow:hidden; background:#000;}
   #qrCanvas{max-width:min(90vw, 440px); width:100%; border-radius:16px; background:#fff;}
   #scanStatus, #qrStatus{color:#fff; font-size:13px; margin-top:12px; text-align:center; max-width:320px;}
@@ -312,11 +312,7 @@
     </label>
     <label style="display:flex; align-items:flex-start; gap:8px; margin-top:10px; cursor:pointer;">
       <input type="checkbox" id="syncPullRetter" style="margin-top:3px;">
-      <span id="syncPullRetterLabel" style="font-size:13.5px; font-weight:400; color:var(--ink); margin:0;">Retter</span>
-    </label>
-    <label style="display:flex; align-items:flex-start; gap:8px; margin-top:10px; cursor:pointer;">
-      <input type="checkbox" id="syncPullRaavarer" style="margin-top:3px;">
-      <span id="syncPullRaavarerLabel" style="font-size:13.5px; font-weight:400; color:var(--ink); margin:0;">Egne råvarer</span>
+      <span id="syncPullRetterLabel" style="font-size:13.5px; font-weight:400; color:var(--ink); margin:0;">Retter og råvarer</span>
     </label>
 
     <div class="btn-row">
@@ -3889,11 +3885,9 @@ function showSyncPullChoice(data){
   const dayCount = Object.values(data.days||{}).filter(d=>Object.values(d.meals||{}).some(m=>m)).length;
   document.getElementById('syncPullInfo').textContent = 'Gemt til sky: '+savedText;
   document.getElementById('syncPullUgeplanLabel').textContent = `Ugeplan (erstatter din nuværende — ${dayCount} udfyldte dage)`;
-  document.getElementById('syncPullRetterLabel').textContent = `Retter (${recipeCount} stk. — tilføjes til dine egne)`;
-  document.getElementById('syncPullRaavarerLabel').textContent = `Egne råvarer (${ingCount} stk. — tilføjes til dine egne)`;
+  document.getElementById('syncPullRetterLabel').textContent = `Retter og råvarer (${recipeCount} retter, ${ingCount} råvarer — tilføjes til dine egne)`;
   document.getElementById('syncPullUgeplan').checked = false;
   document.getElementById('syncPullRetter').checked = true;
-  document.getElementById('syncPullRaavarer').checked = true;
   document.getElementById('syncPullChoiceModal').classList.remove('hidden');
 }
 function closeSyncPullChoice(){
@@ -3905,7 +3899,7 @@ function applySyncPullChoice(){
   if(!data) return;
   const wantUgeplan = document.getElementById('syncPullUgeplan').checked;
   const wantRetter = document.getElementById('syncPullRetter').checked;
-  const wantRaavarer = document.getElementById('syncPullRaavarer').checked;
+  const wantRaavarer = wantRetter;
   const status = document.getElementById('syncStatus');
   let msgs = [];
 
