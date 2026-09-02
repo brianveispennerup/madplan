@@ -316,6 +316,7 @@
   <canvas id="qrCanvas"></canvas>
   <div id="qrStatus">Genererer QR-kode…</div>
   <div id="qrUrlText" style="color:#cdd; font-size:10.5px; word-break:break-all; max-width:280px; text-align:center; margin-top:6px;"></div>
+  <button class="btn primary small" id="qrCopyBtn" style="margin-top:10px; display:none;" onclick="copyQrLink()">📋 Kopiér link</button>
   <button class="btn ghost small" style="margin-top:14px;" onclick="closeQrModal()">Luk</button>
 </div>
 
@@ -3900,12 +3901,15 @@ async function shareViaQR(type, dataObj){
   document.getElementById('qrModal').classList.remove('hidden');
   document.getElementById('qrStatus').textContent = 'Uploader…';
   document.getElementById('qrUrlText').textContent = '';
+  document.getElementById('qrCopyBtn').style.display = 'none';
   try{
     const res = await fetch(base+'/transfer', { method:'POST', body: JSON.stringify(dataObj) });
     if(!res.ok){ throw new Error('Upload fejlede ('+res.status+'): '+(await res.text())); }
     const {id} = await res.json();
     const importUrl = location.origin + location.pathname + '?import='+encodeURIComponent(type)+'&id='+encodeURIComponent(id);
     document.getElementById('qrUrlText').textContent = importUrl;
+    document.getElementById('qrCopyBtn').style.display = '';
+    document.getElementById('qrCopyBtn').dataset.url = importUrl;
     renderQrToCanvas(importUrl);
   }catch(err){
     console.error('shareViaQR error', err);
@@ -3939,7 +3943,25 @@ function renderQrToCanvas(text){
     document.getElementById('qrStatus').textContent = 'Kunne ikke tegne QR-kode — send linket manuelt: '+text;
   }
 }
-function closeQrModal(){ document.getElementById('qrModal').classList.add('hidden'); }
+function closeQrModal(){
+  document.getElementById('qrModal').classList.add('hidden');
+  document.getElementById('qrCopyBtn').style.display = 'none';
+}
+function copyQrLink(){
+  const url = document.getElementById('qrCopyBtn').dataset.url || '';
+  if(!url) return;
+  const btn = document.getElementById('qrCopyBtn');
+  const done = ()=>{ btn.textContent = '✓ Kopieret!'; setTimeout(()=>{ btn.textContent = '📋 Kopiér link'; }, 2000); };
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(url).then(done).catch(()=>{
+      if(navigator.share){ navigator.share({url}).catch(()=>{}); } else { prompt('Kopiér linket manuelt:', url); }
+    });
+  } else if(navigator.share){
+    navigator.share({url}).catch(()=>{});
+  } else {
+    prompt('Kopiér linket manuelt:', url);
+  }
+}
 
 /* ---- Modtag delt data via link (?import=type&id=xxx i URL'en) ---- */
 async function checkImportFromUrl(){
