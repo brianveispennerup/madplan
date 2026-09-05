@@ -150,6 +150,12 @@
 </head>
 <body>
 
+<div id="syncNoticeBar" class="hidden" style="position:fixed; top:0; left:0; right:0; z-index:300; background:#16321f; color:#EFFBEA; padding:calc(env(safe-area-inset-top,0px) + 10px) 16px 10px; display:flex; align-items:center; gap:10px; font-size:13px;">
+  <span id="syncNoticeText" style="flex:1;">Der er ny data i skyen.</span>
+  <button class="btn primary small" onclick="acceptSyncNotice()">Hent</button>
+  <button class="btn ghost small" style="background:rgba(255,255,255,.15); color:#EFFBEA;" onclick="dismissSyncNotice()">Ikke nu</button>
+</div>
+
 <div class="hero">
   <div class="hero-top">
     <span class="app-name">🌿 Madplan</span>
@@ -404,8 +410,9 @@ function loadState(){
       if(!parsed.days) parsed.days = {};
       if(!parsed.shoppingChecked) parsed.shoppingChecked = {};
       if(!parsed.recipeLibrary) parsed.recipeLibrary = {};
-      if(!parsed.settings) parsed.settings = { workerUrl: '', syncCode: '' };
+      if(!parsed.settings) parsed.settings = { workerUrl: '', syncCode: '', lastKnownCloudSavedAt: '' };
       if(parsed.settings.syncCode===undefined) parsed.settings.syncCode = '';
+      if(parsed.settings.lastKnownCloudSavedAt===undefined) parsed.settings.lastKnownCloudSavedAt = '';
       if(!parsed.importedShoppingItems) parsed.importedShoppingItems = [];
       for(const dayNum in parsed.days){
         const d = parsed.days[dayNum];
@@ -417,12 +424,16 @@ function loadState(){
       return parsed;
     }
   }catch(e){ console.warn('Kunne ikke læse gemt data.', e); }
-  return { kartotek: defaultKartotek(), days: {}, shoppingChecked: {}, recipeLibrary: {}, settings: { workerUrl: '', syncCode: '' }, importedShoppingItems: [] };
+  return { kartotek: defaultKartotek(), days: {}, shoppingChecked: {}, recipeLibrary: {}, settings: { workerUrl: '', syncCode: '', lastKnownCloudSavedAt: '' }, importedShoppingItems: [] };
 }
 function saveState(){
   try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
   catch(e){ console.warn('Kunne ikke gemme (localStorage utilgængelig i denne visning).', e); }
   scheduleAutoPush();
+}
+function persistLocalOnly(){
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+  catch(e){ console.warn('Kunne ikke gemme (localStorage utilgængelig i denne visning).', e); }
 }
 let autoPushTimer = null;
 function scheduleAutoPush(){
@@ -1449,6 +1460,8 @@ async function pushSync(silent){
       method:'PUT', body: JSON.stringify(payload)
     });
     if(!res.ok) throw new Error(await res.text());
+    state.settings.lastKnownCloudSavedAt = payload.savedAt;
+    persistLocalOnly();
     status.textContent = (silent ? ' Automatisk synkroniseret ' : ' Gemt til sky (') + (silent ? 'kl. ' : '') + new Date().toLocaleTimeString('da-DK') + (silent ? '.' : ').');
   }catch(err){
     console.error('pushSync error', err);
@@ -1456,6 +1469,36 @@ async function pushSync(silent){
   }
 }
 let pendingSyncData = null;
+/* ---- Tjek ved opstart om der er nyere data i skyen (spørger, henter ikke automatisk) ---- */
+async function checkSyncOnLoad(){
+  if(!state.settings.workerUrl || !state.settings.syncCode) return;
+  const base = state.settings.workerUrl.trim().replace(/\/$/,'');
+  try{
+    const res = await fetch(base+'/sync?code='+encodeURIComponent(state.settings.syncCode));
+    if(!res.ok) return; // intet gemt endnu, eller fejl — sig ikke noget, forstyr ikke
+    const data = await res.json();
+    if(!data.savedAt || data.savedAt === state.settings.lastKnownCloudSavedAt) return; // intet nyt siden sidst
+    pendingSyncData = data;
+    const savedText = new Date(data.savedAt).toLocaleString('da-DK');
+    document.getElementById('syncNoticeText').textContent = 'Ny data i skyen (gemt '+savedText+').';
+    document.getElementById('syncNoticeBar').classList.remove('hidden');
+  }catch(e){ console.warn('checkSyncOnLoad fejlede (stille, ikke kritisk):', e); }
+}
+function acceptSyncNotice(){
+  hideSyncNotice();
+  if(pendingSyncData) showSyncPullChoice(pendingSyncData);
+}
+function dismissSyncNotice(){
+  if(pendingSyncData && pendingSyncData.savedAt){
+    state.settings.lastKnownCloudSavedAt = pendingSyncData.savedAt;
+    persistLocalOnly();
+  }
+  hideSyncNotice();
+}
+function hideSyncNotice(){
+  document.getElementById('syncNoticeBar').classList.add('hidden');
+}
+
 /* ---- Hent retter+råvarer fra en andens kode, uden at røre egen gemte kode ---- */
 async function fetchForeignRecipesAndIngredients(){
   const code = document.getElementById('foreignCodeInput').value.trim();
@@ -1558,7 +1601,10 @@ function applySyncPullChoice(){
     msgs.push(added+' nye råvarer');
   }
 
+  if(data.savedAt) state.settings.lastKnownCloudSavedAt = data.savedAt;
+
   closeSyncPullChoice();
+  hideSyncNotice();
   saveState(); renderAll();
   status.textContent = msgs.length ? ' Hentet: '+msgs.join(', ')+'.' : ' Intet valgt — ingenting hentet.';
 }
@@ -1712,6 +1758,7 @@ function renderAll(){
   if(si && document.activeElement !== si) si.value = state.settings.syncCode || '';
 }
 renderAll();
+checkSyncOnLoad();
 
 async function loadFullFridaData(){
   try{
