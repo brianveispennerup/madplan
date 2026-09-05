@@ -26,6 +26,7 @@ const ALLOWED_TARGET_DOMAINS = [
   'emmaolsen.dk',
   'foodiee.dk',
   'meny.dk',
+  'vegetariskhverdag.dk',
   // Tilføj flere domæner her efter behov, fx 'eksempel.dk',
 ];
 

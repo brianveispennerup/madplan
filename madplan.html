@@ -159,6 +159,7 @@
 <div class="hero">
   <div class="hero-top">
     <span class="app-name">🌿 Madplan</span>
+    <span id="syncBadge" style="font-size:11px; font-weight:700; opacity:.85;"></span>
     <button class="clearweek" id="clearWeekBtn">Ryd uge</button>
   </div>
 
@@ -222,57 +223,27 @@
   <section id="tab-kartotek" class="panel">
     <div class="section-title">Råvarekartotek</div>
 
-    <div class="card">
-      <h3 style="font-size:14px; margin-bottom:6px;">Hent retter og råvarer (fra en anden persons kode)</h3>
-      <div style="display:flex; gap:8px;">
-        <input type="text" id="foreignCodeInput" placeholder="Den andens kode" style="flex:1;">
-        <button class="btn primary" onclick="fetchForeignRecipesAndIngredients()">Hent</button>
-      </div>
-      <span class="hint" id="foreignFetchStatus"></span>
-    </div>
-
-    <div class="card">
-      <h3 style="font-size:14px; margin-bottom:6px;">Synkronisering (samme data på flere enheder)</h3>
-      <div style="display:flex; gap:8px;">
-        <input type="text" id="syncCodeInput" placeholder="fx BRIAN23" style="flex:1;" onchange="saveSyncCode()">
-        <button class="btn ghost small" onclick="generateSyncCode()">Generér</button>
-      </div>
-      <div class="btn-row">
-        <button class="btn primary" onclick="pushSync()">☁️ Gem til sky</button>
-        <button class="btn ghost" onclick="pullSync()">☁️ Hent fra sky</button>
-      </div>
-      <span class="hint" id="syncStatus"></span>
-    </div>
-
-    <div class="card">
-      <h3 style="font-size:14px; margin-bottom:6px;">Din egen proxy til "Hent"-knappen</h3>
-      <input type="url" id="workerUrlInput" placeholder="https://madplan-proxy.dit-navn.workers.dev">
-      <button class="btn primary small" style="margin-top:8px;" onclick="saveWorkerUrl()">Gem</button>
-      <span class="hint" id="workerUrlStatus"></span>
-    </div>
-
-    <div class="card">
-      <h3 style="font-size:14px; margin-bottom:8px;">Slå op via stregkode</h3>
-      <div style="display:flex; gap:8px;">
-        <input type="text" id="manualBarcode" placeholder="Indtast stregkode" style="flex:1;">
-        <button class="btn primary" onclick="lookupBarcode(document.getElementById('manualBarcode').value)">Slå op</button>
-      </div>
-      <span class="hint" id="manualBarcodeStatus"></span>
-    </div>
-
-    <input type="text" id="kartotekSearch" placeholder="Søg råvare…" style="margin-bottom:12px;">
+    <input type="text" id="kartotekSearch" placeholder="Søg råvare…" style="margin-bottom:4px;">
+    <span class="hint" id="fridaLoadStatus" style="display:block; margin-bottom:8px;"></span>
     <div id="kartotekListWrap">
       <div class="kart-scroll">
         <div class="kart-row headrow"><div>Navn</div><div>Kcal</div><div>Protein</div><div>Fedt</div><div>Mæt.fedt</div><div>Kulh.</div><div>Fibre</div><div>Salt</div><div>g/stk</div></div>
         <div id="kartotekList"></div>
       </div>
     </div>
-    <div id="kartotekEmptyHint" class="empty-state"></div>
+    <div id="kartotekEmptyHint" style="text-align:center; padding:8px 16px; color:var(--ink-soft);"></div>
 
-    <button class="btn ghost block" id="toggleManualAddBtn" style="margin-top:18px;" onclick="toggleManualAdd()">+ Tilføj råvare manuelt</button>
+    <button class="btn primary block" id="toggleManualAddBtn" style="margin-top:8px;" onclick="toggleManualAdd()">+ Tilføj råvare</button>
     <div id="manualAddForm" class="hidden">
-      <h3 style="margin:16px 0 8px; font-size:14px;">Tilføj råvare manuelt</h3>
-      <label>Navn</label><input type="text" id="newName">
+      <h3 style="margin:16px 0 8px; font-size:14px;">Tilføj råvare</h3>
+      <label>Stregkode (valgfri — udfylder felterne automatisk)</label>
+      <div style="display:flex; gap:8px;">
+        <input type="text" id="newBarcodeInput" placeholder="Indtast stregkode" style="flex:1;">
+        <button class="btn ghost small" onclick="lookupBarcodeIntoForm()">Slå op</button>
+      </div>
+      <span class="hint" id="newBarcodeStatus"></span>
+
+      <label style="margin-top:14px;">Navn</label><input type="text" id="newName">
       <div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">
         <div style="flex:1; min-width:70px;"><label>Kcal</label><input type="number" id="newKcal"></div>
         <div style="flex:1; min-width:70px;"><label>Protein</label><input type="number" id="newProtein"></div>
@@ -292,6 +263,38 @@
         <option value="krydderi_andet">Krydderi/andet</option>
       </select>
       <button class="btn primary block" style="margin-top:12px;" onclick="addKartotekEntry()">Tilføj til kartotek</button>
+    </div>
+
+    <button class="btn ghost block" id="toggleForeignBtn" style="margin-top:18px;" onclick="toggleForeignSection()">+ Hent retter og råvarer (fra en anden persons kode)</button>
+    <div id="foreignSection" class="hidden card" style="margin-top:10px;">
+      <h3 style="font-size:14px; margin-bottom:6px;">Hent retter og råvarer (fra en anden persons kode)</h3>
+      <div style="display:flex; gap:8px;">
+        <input type="text" id="foreignCodeInput" placeholder="Den andens kode" style="flex:1;">
+        <button class="btn primary" onclick="fetchForeignRecipesAndIngredients()">Hent</button>
+      </div>
+      <span class="hint" id="foreignFetchStatus"></span>
+    </div>
+
+    <button class="btn ghost block" id="toggleSyncBtn" style="margin-top:10px;" onclick="toggleSyncSection()">+ Synkronisering</button>
+    <div id="syncSection" class="hidden card" style="margin-top:10px;">
+      <h3 style="font-size:14px; margin-bottom:6px;">Synkronisering (samme data på flere enheder)</h3>
+      <div style="display:flex; gap:8px;">
+        <input type="text" id="syncCodeInput" placeholder="fx BRIAN23" style="flex:1;" onchange="saveSyncCode()">
+        <button class="btn ghost small" onclick="generateSyncCode()">Generér</button>
+      </div>
+      <div class="btn-row">
+        <button class="btn primary" onclick="pushSync()">☁️ Gem til sky</button>
+        <button class="btn ghost" onclick="pullSync()">☁️ Hent fra sky</button>
+      </div>
+      <span class="hint" id="syncStatus"></span>
+    </div>
+
+    <button class="btn ghost block" id="toggleProxyBtn" style="margin-top:10px;" onclick="toggleProxySection()">+ Din egen proxy</button>
+    <div id="proxySection" class="hidden card" style="margin-top:10px;">
+      <h3 style="font-size:14px; margin-bottom:6px;">Din egen proxy til "Hent"-knappen</h3>
+      <input type="url" id="workerUrlInput" placeholder="https://madplan-proxy.dit-navn.workers.dev">
+      <button class="btn primary small" style="margin-top:8px;" onclick="saveWorkerUrl()">Gem</button>
+      <span class="hint" id="workerUrlStatus"></span>
     </div>
   </section>
 </main>
@@ -397,6 +400,10 @@ function defaultKartotek(){
   add('rasp',{kcal:351.3,protein:10.7,fat:1.5,carb:70.3,satFat:0.3,fiber:6.9,salt:1.06,category:'kornprodukter'});
   add('tacokrydderi',{kcal:280,protein:8,fat:3,carb:50,satFat:0.5,fiber:5,salt:15,category:'krydderi_andet'});
   add('hønsebouillonterning',{kcal:80,protein:10,fat:2,carb:8,satFat:1,fiber:0,salt:40,category:'krydderi_andet',units:{stk:10}});
+  add('grøntsagsbouillon',{kcal:5,protein:0.3,fat:0.1,carb:0.5,satFat:0,fiber:0,salt:1,category:'krydderi_andet',units:{dl:100}});
+  add('sennep',{kcal:85,protein:4,fat:4,carb:8,satFat:0.2,fiber:2,salt:3.5,category:'krydderi_andet'});
+  add('ketchup',{kcal:100,protein:1.2,fat:0.2,carb:24,satFat:0,fiber:0.5,salt:2,category:'krydderi_andet'});
+  add('macaroni',{kcal:350,protein:12,fat:1.5,carb:70,satFat:0.3,fiber:3,salt:0.01,category:'kornprodukter'});
   return D;
 }
 
@@ -436,10 +443,22 @@ function persistLocalOnly(){
   catch(e){ console.warn('Kunne ikke gemme (localStorage utilgængelig i denne visning).', e); }
 }
 let autoPushTimer = null;
+let syncDirty = false, syncPushInFlight = false, syncErrorState = false;
 function scheduleAutoPush(){
   if(!state.settings.workerUrl || !state.settings.syncCode) return; // synk ikke sat op — intet at automatisere
+  syncDirty = true; syncErrorState = false;
+  updateSyncBadge();
   clearTimeout(autoPushTimer);
   autoPushTimer = setTimeout(()=>{ pushSync(true); }, 4000);
+}
+function updateSyncBadge(){
+  const el = document.getElementById('syncBadge');
+  if(!el) return;
+  if(!state.settings.workerUrl || !state.settings.syncCode){ el.textContent=''; return; }
+  if(syncPushInFlight){ el.textContent='☁️ Gemmer…'; el.style.color='#2E4A31'; }
+  else if(syncErrorState){ el.textContent='⚠️ Ikke gemt — luk ikke endnu'; el.style.color='#9C3B3B'; }
+  else if(syncDirty){ el.textContent='● Ændringer venter…'; el.style.color='#8f5f22'; }
+  else{ el.textContent='☁️ Gemt'; el.style.color='#2E4A31'; }
 }
 function getDay(n){
   if(!state.days[n]) state.days[n] = { target:2000, split:{morgen:20,frokost:25,aften:35,snack1:10,snack2:10}, meals:{morgen:null,frokost:null,aften:null,snack1:null,snack2:null} };
@@ -458,13 +477,42 @@ function normalizeFraction(str){
   return str.replace(/½/g,'0.5').replace(/¼/g,'0.25').replace(/¾/g,'0.75')
     .replace(/(\d+)\/(\d+)/g,(m,a,b)=>(parseFloat(a)/parseFloat(b)).toString());
 }
-function findKartotekMatch(rawName){
-  let n = rawName.toLowerCase().replace(/\(.*?\)/g,'')
-    .replace(/\b(evt\.?|ca\.?|frisk[e]?|hakket|hakkede|revet|revne|små|stor[e]?|lille|øko|økologisk[e]?)\b/g,'')
+function normalizeIngredientText(rawName){
+  return rawName.toLowerCase().replace(/\(.*?\)/g,'')
+    .replace(/\b(evt\.?|ca\.?|frisk[e]?|revet|revne|små|stor[e]?|lille|øko|økologisk[e]?)\b/g,'')
     .replace(/[.,]/g,'').trim();
+}
+function findKartotekMatch(rawName){
+  const n = normalizeIngredientText(rawName);
   let best=null,bestLen=0;
   for(const key in state.kartotek){ if(n.includes(key) && key.length>bestLen){best=key;bestLen=key.length;} }
-  return best;
+  if(best) return best; // direkte match — mest pålideligt, brug det
+  // Tovejs: kartotek-navnet er mere specifikt og indeholder hele opskrift-teksten (fx "ketchup" i "tomatketchup")
+  if(n.length>=4){
+    let bestReverse=null, bestDiff=Infinity;
+    for(const key in state.kartotek){
+      if(key.includes(n)){
+        const diff = key.length-n.length;
+        if(diff<bestDiff){ bestDiff=diff; bestReverse=key; }
+      }
+    }
+    if(bestReverse) return bestReverse;
+  }
+  return null;
+}
+function suggestKartotekMatches(rawName, limit){
+  limit = limit || 4;
+  const n = normalizeIngredientText(rawName);
+  const words = n.split(/\s+/).filter(w=>w.length>=3);
+  const scored = [];
+  for(const key in state.kartotek){
+    let score = 0;
+    if(key.includes(n) || n.includes(key)) score += 10;
+    for(const w of words){ if(key.includes(w)) score += 2; }
+    if(score>0) scored.push({key, score});
+  }
+  scored.sort((a,b)=> b.score-a.score || a.key.length-b.key.length);
+  return scored.slice(0, limit).map(s=>s.key);
 }
 function gramsFromUnit(matchedKey, amount, unit){
   const entry = state.kartotek[matchedKey];
@@ -799,6 +847,21 @@ function extractRecipeHeuristic(html){
     if(!listMatch) return [];
     return [...listMatch[2].matchAll(/<li[^>]*>([\s\S]*?)<\/li>/gi)].map(m=>stripTags(m[1])).filter(Boolean);
   }
+  function allListItemsAfter(pos, windowSize){
+    // Samler ALLE lister frem til næste hovedoverskrift (h1-h4) — håndterer sider, der grupperer
+    // ingredienser i undersektioner (fx "Tomatsovs" / "Desuden") under mindre overskrifter (h5/h6).
+    if(pos === -1) return [];
+    const rest = noScripts.slice(pos, pos + (windowSize || 8000));
+    const nextHeadingIdx = rest.search(/<h[1-4][^>]*>/i);
+    const scoped = nextHeadingIdx === -1 ? rest : rest.slice(0, nextHeadingIdx);
+    const items = [];
+    const listRe = /<(ul|ol)[^>]*>([\s\S]*?)<\/\1>/gi;
+    let m;
+    while((m = listRe.exec(scoped)) !== null){
+      items.push(...[...m[2].matchAll(/<li[^>]*>([\s\S]*?)<\/li>/gi)].map(x=>stripTags(x[1])).filter(Boolean));
+    }
+    return items;
+  }
   function paragraphsAfter(pos, windowSize){
     if(pos === -1) return [];
     const rest = noScripts.slice(pos, pos + (windowSize || 6000));
@@ -806,10 +869,10 @@ function extractRecipeHeuristic(html){
   }
 
   const ingPos = findSectionStart(noScripts, 'Ingrediens\\w*');
-  let ingredients = firstListAfter(ingPos);
+  let ingredients = allListItemsAfter(ingPos);
 
   const stepPos = findSectionStart(noScripts, '(Fremgangsm[åa]de|S[åa]dan (g[øo]r|laver)|Tilberedning|Metode)');
-  let steps = firstListAfter(stepPos);
+  let steps = allListItemsAfter(stepPos);
   if(steps.length === 0) steps = paragraphsAfter(stepPos);
 
   if(ingredients.length === 0) return null;
@@ -861,7 +924,7 @@ async function fetchRecipeFromLink(slot){
 }
 
 function toggleSlot(slot){ openSlot = openSlot===slot ? null : slot; addMode[slot]=null; pendingIngredients[slot]=[]; renderAll(); }
-function setAddMode(slot, mode){ addMode[slot]=mode; if(mode==='build') pendingIngredients[slot]=[]; renderAddArea(slot); }
+function setAddMode(slot, mode){ addMode[slot]=mode; rematchOpenFor=null; if(mode==='build') pendingIngredients[slot]=[]; renderAddArea(slot); }
 
 function renderAddArea(slot){
   const area = document.getElementById('addArea-'+slot);
@@ -956,21 +1019,72 @@ function updatePendingIngredient(slot, idx, field, value){
     renderPendingIngList(slot);
   }
 }
+let rematchOpenFor = null; // {scope:'pending'|'libedit', id, idx}
+
+function getRematchArray(scope, id){
+  return scope==='pending' ? pendingIngredients[id] : libraryEditIngredients[id];
+}
+function toggleRematch(scope, id, idx){
+  if(rematchOpenFor && rematchOpenFor.scope===scope && rematchOpenFor.id===id && rematchOpenFor.idx===idx){
+    rematchOpenFor = null;
+  } else {
+    rematchOpenFor = {scope, id, idx};
+  }
+  if(scope==='pending') renderPendingIngList(id); else renderLibEditIngList(id);
+}
+function applyRematch(scope, id, idx, key){
+  const item = getRematchArray(scope, id)[idx];
+  item.matchedKey = key;
+  item.name = key;
+  rematchOpenFor = null;
+  if(scope==='pending') renderPendingIngList(id); else renderLibEditIngList(id);
+}
+function renderRematchPanel(scope, id, idx, item){
+  const suggestions = suggestKartotekMatches(item.name);
+  return `
+    <div style="background:var(--bg); border-radius:12px; padding:10px; margin:4px 0 8px;">
+      <div class="hint" style="margin:0 0 6px;">Ret match for "${item.name}":</div>
+      ${suggestions.length ? `<div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px;">
+        ${suggestions.map(k=>`<button class="btn ghost small" onclick="applyRematch('${scope}','${id}',${idx},'${k.replace(/'/g,"\\'")}')">${k}</button>`).join('')}
+      </div>` : `<div class="hint" style="margin-bottom:8px;">Ingen automatiske forslag.</div>`}
+      <input type="text" id="rematchSearch-${scope}-${id}-${idx}" placeholder="Søg selv…">
+      <div class="picker-results" id="rematchResults-${scope}-${id}-${idx}"></div>
+    </div>`;
+}
+function wireRematchSearch(scope, id, idx){
+  const input = document.getElementById(`rematchSearch-${scope}-${id}-${idx}`);
+  if(!input) return;
+  input.addEventListener('input', e=>{
+    const q = e.target.value.toLowerCase();
+    const results = document.getElementById(`rematchResults-${scope}-${id}-${idx}`);
+    if(!q){ results.innerHTML=''; return; }
+    const keys = Object.keys(state.kartotek).filter(k=>k.includes(q)).sort().slice(0,20);
+    results.innerHTML = keys.length ? keys.map(k=>`<div class="picker-item" onclick="applyRematch('${scope}','${id}',${idx},'${k.replace(/'/g,"\\'")}')"><span>${k}</span></div>`).join('') : '<div class="picker-item">Ingen match.</div>';
+  });
+}
+
 function renderPendingIngList(slot){
   const el = document.getElementById('pendingIngList-'+slot);
   if(!el) return;
   const list = pendingIngredients[slot]||[];
   if(list.length===0){ el.innerHTML=''; return; }
   const unitOptions = ['g','kg','l','dl','cl','ml','spsk','tsk','stk','fed','bdt','ds'];
-  el.innerHTML = list.map((item,idx)=>`
+  el.innerHTML = list.map((item,idx)=>{
+    const isOpen = rematchOpenFor && rematchOpenFor.scope==='pending' && rematchOpenFor.id===slot && rematchOpenFor.idx===idx;
+    return `
     <div style="display:flex; gap:6px; align-items:center; margin-top:6px;">
-      <span style="flex:1; font-size:13px; ${item.matchedKey?'':'color:var(--danger);'}">${item.name}${item.matchedKey?'':' <span class="tag-warn">ej matchet</span>'}</span>
+      <span style="flex:1; font-size:13px; ${item.matchedKey?'':'color:var(--danger); cursor:pointer;'}" ${item.matchedKey?'':`onclick="toggleRematch('pending','${slot}',${idx})"`}>${item.name}${item.matchedKey?'':' <span class="tag-warn">ej matchet — tryk for forslag</span>'}</span>
       <input type="number" value="${item.amount}" style="width:64px;" onchange="updatePendingIngredient('${slot}',${idx},'amount',this.value)">
       <select style="width:76px;" onchange="updatePendingIngredient('${slot}',${idx},'unit',this.value)">
         ${unitOptions.map(u=>`<option value="${u}" ${u===item.unit?'selected':''}>${u}</option>`).join('')}
       </select>
       <button class="btn ghost small" onclick="removePendingIngredient('${slot}',${idx})">✕</button>
-    </div>`).join('');
+    </div>
+    ${isOpen ? renderRematchPanel('pending', slot, idx, item) : ''}`;
+  }).join('');
+  if(rematchOpenFor && rematchOpenFor.scope==='pending' && rematchOpenFor.id===slot){
+    wireRematchSearch('pending', slot, rematchOpenFor.idx);
+  }
 }
 
 function pickFromLibrary(slot, id){
@@ -1103,6 +1217,7 @@ function renderLibrary(filter){
 }
 
 function toggleLibraryEdit(id){
+  rematchOpenFor=null;
   if(openLibraryId===id){ openLibraryId=null; }
   else {
     openLibraryId=id;
@@ -1136,15 +1251,22 @@ function renderLibEditIngList(id){
   if(!el) return;
   const list = libraryEditIngredients[id]||[];
   const unitOptions = ['g','kg','l','dl','cl','ml','spsk','tsk','stk','fed','bdt','ds'];
-  el.innerHTML = list.map((item,idx)=>`
+  el.innerHTML = list.map((item,idx)=>{
+    const isOpen = rematchOpenFor && rematchOpenFor.scope==='libedit' && rematchOpenFor.id===id && rematchOpenFor.idx===idx;
+    return `
     <div style="display:flex; gap:6px; align-items:center; margin-top:6px;">
-      <span style="flex:1; font-size:13px; ${item.matchedKey?'':'color:var(--danger);'}">${item.name}${item.matchedKey?'':' <span class="tag-warn">ej matchet</span>'}</span>
+      <span style="flex:1; font-size:13px; ${item.matchedKey?'':'color:var(--danger); cursor:pointer;'}" ${item.matchedKey?'':`onclick="toggleRematch('libedit','${id}',${idx})"`}>${item.name}${item.matchedKey?'':' <span class="tag-warn">ej matchet — tryk for forslag</span>'}</span>
       <input type="number" value="${item.amount}" style="width:64px;" onchange="updateLibEditIngredient('${id}',${idx},'amount',this.value)">
       <select style="width:76px;" onchange="updateLibEditIngredient('${id}',${idx},'unit',this.value)">
         ${unitOptions.map(u=>`<option value="${u}" ${u===item.unit?'selected':''}>${u}</option>`).join('')}
       </select>
       <button class="btn ghost small" onclick="removeLibEditIngredient('${id}',${idx})">✕</button>
-    </div>`).join('');
+    </div>
+    ${isOpen ? renderRematchPanel('libedit', id, idx, item) : ''}`;
+  }).join('');
+  if(rematchOpenFor && rematchOpenFor.scope==='libedit' && rematchOpenFor.id===id){
+    wireRematchSearch('libedit', id, rematchOpenFor.idx);
+  }
 }
 function saveLibraryEdit(id){
   const title = document.getElementById('libedit-title-'+id).value.trim() || 'Uden titel';
@@ -1235,10 +1357,28 @@ function toggleManualAdd(){
   const form = document.getElementById('manualAddForm');
   const btn = document.getElementById('toggleManualAddBtn');
   const nowHidden = form.classList.toggle('hidden');
-  btn.textContent = nowHidden ? '+ Tilføj råvare manuelt' : '– Skjul tilføj-råvare';
+  btn.textContent = nowHidden ? '+ Tilføj råvare' : '– Skjul tilføj-råvare';
+}
+function toggleForeignSection(){
+  const section = document.getElementById('foreignSection');
+  const btn = document.getElementById('toggleForeignBtn');
+  const nowHidden = section.classList.toggle('hidden');
+  btn.textContent = nowHidden ? '+ Hent retter og råvarer (fra en anden persons kode)' : '– Skjul hent-fra-anden';
+}
+function toggleSyncSection(){
+  const section = document.getElementById('syncSection');
+  const btn = document.getElementById('toggleSyncBtn');
+  const nowHidden = section.classList.toggle('hidden');
+  btn.textContent = nowHidden ? '+ Synkronisering' : '– Skjul synkronisering';
+}
+function toggleProxySection(){
+  const section = document.getElementById('proxySection');
+  const btn = document.getElementById('toggleProxyBtn');
+  const nowHidden = section.classList.toggle('hidden');
+  btn.textContent = nowHidden ? '+ Din egen proxy' : '– Skjul proxy';
 }
 let showAllKartotek = false;
-function toggleShowAllKartotek(){ showAllKartotek = true; renderKartotek(document.getElementById('kartotekSearch').value); }
+function toggleShowAllKartotek(){ showAllKartotek = !showAllKartotek; renderKartotek(document.getElementById('kartotekSearch').value); }
 
 function renderKartotek(filter){
   filter=(filter||'').toLowerCase();
@@ -1248,11 +1388,13 @@ function renderKartotek(filter){
 
   if(!filter && !showAllKartotek){
     wrap.classList.add('hidden');
-    hint.innerHTML = `<div class="em">🔍</div>Søg efter en råvare ovenfor for at se den.<br><button class="btn ghost small" style="margin-top:10px;" onclick="toggleShowAllKartotek()">Vis alle ${total} råvarer</button>`;
+    hint.innerHTML = `<button class="btn ghost small" onclick="toggleShowAllKartotek()">Vis alle ${total} råvarer</button>`;
     return;
   }
   wrap.classList.remove('hidden');
-  hint.innerHTML = '';
+  hint.innerHTML = (!filter && showAllKartotek)
+    ? `<button class="btn ghost small" onclick="toggleShowAllKartotek()">Skjul listen igen</button>`
+    : '';
 
   const el = document.getElementById('kartotekList');
   const keys = Object.keys(state.kartotek).filter(k=>k.includes(filter)).sort();
@@ -1301,36 +1443,37 @@ function addKartotekEntry(){
     category: document.getElementById('newCat').value,
     unitWeights:{}, source:'bruger'
   };
-  ['newName','newKcal','newProtein','newFat','newSatFat','newCarb','newFiber','newSalt'].forEach(id=>document.getElementById(id).value='');
+  ['newName','newKcal','newProtein','newFat','newSatFat','newCarb','newFiber','newSalt','newBarcodeInput'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('newBarcodeStatus').textContent = '';
   saveState(); renderAll();
 }
 document.getElementById('kartotekSearch').addEventListener('input', e=>renderKartotek(e.target.value));
 document.getElementById('shopSort').addEventListener('change', renderShoppingList);
 
 /* ============================================================
-   STREGKODEOPSLAG (manuel indtastning → Open Food Facts)
+   STREGKODEOPSLAG (udfylder tilføj-formularen, gemmer ikke direkte)
 ============================================================ */
-async function lookupBarcode(code){
-  code = (code||'').trim();
-  if(!code) return;
-  const status = document.getElementById('manualBarcodeStatus');
+async function lookupBarcodeIntoForm(){
+  const code = (document.getElementById('newBarcodeInput').value||'').trim();
+  const status = document.getElementById('newBarcodeStatus');
+  if(!code){ status.textContent = 'Indtast en stregkode først.'; return; }
   status.textContent = 'Slår '+code+' op…';
   try{
     const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(code)}.json`);
     const data = await res.json();
-    if(data.status!==1){ status.textContent='Produkt ikke fundet i Open Food Facts. Prøv en anden kode, eller tilføj manuelt.'; return; }
+    if(data.status!==1){ status.textContent='Produkt ikke fundet i Open Food Facts — udfyld felterne manuelt i stedet.'; return; }
     const p = data.product;
     const n = p.nutriments || {};
     const name = (p.product_name || p.generic_name || ('produkt '+code)).toLowerCase().trim();
-    state.kartotek[name] = {
-      kcal: n['energy-kcal_100g']||0, protein: n['proteins_100g']||0, fat: n['fat_100g']||0,
-      carb: n['carbohydrates_100g']||0, satFat: n['saturated-fat_100g']||0,
-      fiber: n['fiber_100g']||0, salt: n['salt_100g']||0,
-      category:'krydderi_andet', unitWeights:{}, source:'openfoodfacts'
-    };
-    saveState(); renderAll();
-    document.getElementById('manualBarcode').value = '';
-    status.textContent = `"${name}" tilføjet til råvarekartoteket. Ret evt. kategori nedenfor.`;
+    document.getElementById('newName').value = name;
+    document.getElementById('newKcal').value = n['energy-kcal_100g']||0;
+    document.getElementById('newProtein').value = n['proteins_100g']||0;
+    document.getElementById('newFat').value = n['fat_100g']||0;
+    document.getElementById('newSatFat').value = n['saturated-fat_100g']||0;
+    document.getElementById('newCarb').value = n['carbohydrates_100g']||0;
+    document.getElementById('newFiber').value = n['fiber_100g']||0;
+    document.getElementById('newSalt').value = n['salt_100g']||0;
+    status.textContent = `Felterne er udfyldt fra Open Food Facts — tjek/ret dem, vælg kategori, og tryk "Tilføj til kartotek".`;
   }catch(e){
     status.textContent='Fejl ved opslag — tjek internetforbindelsen og prøv igen.';
   }
@@ -1446,6 +1589,7 @@ async function pushSync(silent){
   }
   const status = document.getElementById('syncStatus');
   status.textContent = silent ? ' Synkroniserer automatisk…' : ' Gemmer til sky…';
+  syncPushInFlight = true; updateSyncBadge();
   const base = state.settings.workerUrl.trim().replace(/\/$/,'');
   const payload = {
     days: state.days,
@@ -1462,11 +1606,14 @@ async function pushSync(silent){
     if(!res.ok) throw new Error(await res.text());
     state.settings.lastKnownCloudSavedAt = payload.savedAt;
     persistLocalOnly();
+    syncDirty = false; syncErrorState = false;
     status.textContent = (silent ? ' Automatisk synkroniseret ' : ' Gemt til sky (') + (silent ? 'kl. ' : '') + new Date().toLocaleTimeString('da-DK') + (silent ? '.' : ').');
   }catch(err){
     console.error('pushSync error', err);
+    syncErrorState = true;
     status.textContent = ' Kunne ikke gemme: '+err.message;
   }
+  syncPushInFlight = false; updateSyncBadge();
 }
 let pendingSyncData = null;
 /* ---- Tjek ved opstart om der er nyere data i skyen (spørger, henter ikke automatisk) ---- */
@@ -1756,14 +1903,20 @@ function renderAll(){
   if(wi && document.activeElement !== wi) wi.value = state.settings.workerUrl || '';
   const si = document.getElementById('syncCodeInput');
   if(si && document.activeElement !== si) si.value = state.settings.syncCode || '';
+  updateSyncBadge();
 }
 renderAll();
 checkSyncOnLoad();
 
 async function loadFullFridaData(){
+  const statusEl = document.getElementById('fridaLoadStatus');
   try{
     const res = await fetch('frida-data.json');
-    if(!res.ok) return;
+    if(!res.ok){
+      console.warn('frida-data.json svarede med status', res.status);
+      if(statusEl) statusEl.textContent = 'Kunne ikke hente den fulde råvareliste (status '+res.status+'). Tjek at frida-data.json er uploadet til dit repo.';
+      return;
+    }
     const data = await res.json();
     let added = 0;
     for(const key in data){
@@ -1773,7 +1926,11 @@ async function loadFullFridaData(){
       }
     }
     if(added>0){ saveState(); renderAll(); }
-  }catch(e){ /* offline, lokal fil, eller frida-data.json mangler — appen virker fint med det indbyggede sæt alligevel */ }
+    if(statusEl) statusEl.textContent = '';
+  }catch(e){
+    console.error('loadFullFridaData fejlede:', e);
+    if(statusEl) statusEl.textContent = 'Kunne ikke indlæse den fulde råvareliste: '+e.message;
+  }
 }
 loadFullFridaData();
 
